@@ -12,9 +12,24 @@ export async function PATCH(
 
   const body = await request.json()
 
+  // ✅ Smart update logic
+  const updateData: any = {
+    ...body,
+  }
+
+  // 👉 If marking completed → add timestamp
+  if (body.completed === true) {
+    updateData.completed_at = new Date().toISOString()
+  }
+
+  // 👉 If unchecking → remove timestamp
+  if (body.completed === false) {
+    updateData.completed_at = null
+  }
+
   const { data, error } = await supabase
     .from("tasks")
-    .update(body)
+    .update(updateData)
     .eq("id", params.id)
     .select()
 
