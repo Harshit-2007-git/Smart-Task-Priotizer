@@ -73,21 +73,29 @@ export function TaskProvider({ children }: { children: ReactNode }) {
     }
   }, [])
 
-  const toggleComplete = useCallback((id: string) => {
-    setTasks((prev) =>
-      prev.map((t) => {
-        if (t.id === id) {
-          const completed = !t.completed
-          return {
-            ...t,
-            completed,
-            category: completed ? "Completed" : t.category,
-          }
-        }
-        return t
-      })
-    )
-  }, [])
+  const toggleComplete = async (id: string) => {
+  const task = tasks.find((t) => t.id === id)
+
+  const updatedCompleted = !task?.completed
+
+  const res = await fetch(`/api/tasks/${id}`, {
+    method: "PATCH",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      completed: updatedCompleted,
+    }),
+  })
+
+  if (!res.ok) {
+    console.error("Failed to update task")
+    return
+  }
+
+  // 🔥 refresh tasks after update
+  fetchTasks()
+}
 
   const getTasksByCategory = useCallback(
     (category: Category) => tasks.filter((t) => t.category === category),
