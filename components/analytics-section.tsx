@@ -1,260 +1,171 @@
 "use client"
 
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import type { Task, Category } from "@/lib/types"
-import { categoryColors } from "@/lib/types"
-import {
-  PieChart,
-  Pie,
-  Cell,
-  ResponsiveContainer,
-  BarChart,
-  Bar,
-  XAxis,
-  YAxis,
-  CartesianGrid,
-  Tooltip,
-  Legend,
-} from "recharts"
+import { useState } from "react"
+import { useTasks } from "@/lib/task-context"
+import { DashboardSidebar } from "@/components/dashboard-sidebar"
+import { DashboardNavbar } from "@/components/dashboard-navbar"
+import { TaskCard } from "@/components/task-card"
+import { AddTaskModal } from "@/components/add-task-modal"
+import { CategorySummary } from "@/components/category-summary"
+import { AnalyticsSection } from "@/components/analytics-section"
+import { FocusModeSection } from "@/components/focus-mode-section"
+import { AIAssistantSection } from "@/components/ai-assistant-section"
+import { Button } from "@/components/ui/button"
+import { ScrollArea } from "@/components/ui/scroll-area"
+import { Skeleton } from "@/components/ui/skeleton"
+import { Plus, Search } from "lucide-react"
+import { Input } from "@/components/ui/input"
+import { toast } from "sonner"
+import type { Task } from "@/lib/types"
 
-const PIE_COLORS = [
-  "#ef4444", // Academic - red
-  "#f97316", // Exams - orange
-  "#3b82f6", // Coding - blue
-  "#10b981", // Reading - emerald
-  "#a855f7", // Personal - purple
-  "#6b7280", // Completed - gray
-]
+export function DashboardContent() {
+  const { tasks, isLoading, addTask, updateTask, deleteTask, toggleComplete } =
+    useTasks()
 
-interface AnalyticsSectionProps {
-  tasks: Task[]
-}
+  const [activeTab, setActiveTab] = useState("all")
+  const [addModalOpen, setAddModalOpen] = useState(false)
+  const [editTask, setEditTask] = useState<Task | null>(null)
+  const [searchQuery, setSearchQuery] = useState("")
 
-export function AnalyticsSection({ tasks }: AnalyticsSectionProps) {
-  // Pie chart: task distribution by category
-  const categories: Category[] = [
-    "Academic",
-    "Exams",
-    "Coding",
-    "Reading",
-    "Personal",
-    "Completed",
-  ]
+  const filteredTasks = tasks.filter((task) => {
+    const matchesSearch =
+      task.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      task.description.toLowerCase().includes(searchQuery.toLowerCase())
 
-  const pieData = categories
-    .map((cat, idx) => ({
-      name: cat,
-      value: tasks.filter((t) => t.category === cat).length,
-      color: PIE_COLORS[idx],
-    }))
-    .filter((d) => d.value > 0)
+    if (activeTab === "Completed") {
+      return task.completed && matchesSearch
+    }
 
-  // Bar chart: tasks completed this week (dummy data for visual appeal)
-  const barData = [
-    { day: "Mon", completed: 2, added: 3 },
-    { day: "Tue", completed: 1, added: 2 },
-    { day: "Wed", completed: 3, added: 1 },
-    { day: "Thu", completed: 2, added: 4 },
-    { day: "Fri", completed: 4, added: 2 },
-    { day: "Sat", completed: 1, added: 1 },
-    { day: "Sun", completed: 0, added: 2 },
-  ]
+    if (activeTab === "all") {
+      return !task.completed && matchesSearch
+    }
 
-  // Productivity score
-  const totalTasks = tasks.length
-  const completedTasks = tasks.filter((t) => t.completed).length
-  const productivityScore =
-    totalTasks > 0 ? Math.round((completedTasks / totalTasks) * 100) : 0
+    return !task.completed && task.category === activeTab && matchesSearch
+  })
 
-  // SVG circle metrics
-  const radius = 70
-  const circumference = 2 * Math.PI * radius
-  const offset = circumference - (productivityScore / 100) * circumference
+  const handleAddOrUpdate = async (
+    taskData: Omit<Task, "id" | "completed" | "createdAt">
+  ) => {
+    if (editTask) {
+      await updateTask(editTask.id, taskData)
+      toast.success("Task updated successfully")
+    } else {
+      await addTask(taskData)
+      toast.success("Task added successfully")
+    }
+    setEditTask(null)
+  }
+
+  const handleDelete = async (id: string) => {
+    await deleteTask(id)
+    toast.success("Task deleted")
+  }
+
+  const handleEdit = (task: Task) => {
+    setEditTask(task)
+    setAddModalOpen(true)
+  }
+
+  // Tabs that show the full-page custom UI (no task list / search bar)
+  const isSpecialTab = activeTab === "Analytics" || activeTab === "FocusMode" || activeTab === "AIAssistant"
 
   return (
-    <div className="flex flex-col gap-6">
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* Pie Chart */}
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-base font-semibold text-card-foreground">
-              Task Distribution
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="h-64">
-              <ResponsiveContainer width="100%" height="100%">
-                <PieChart>
-                  <Pie
-                    data={pieData}
-                    cx="50%"
-                    cy="50%"
-                    innerRadius={60}
-                    outerRadius={90}
-                    paddingAngle={3}
-                    dataKey="value"
-                  >
-                    {pieData.map((entry, index) => (
-                      <Cell key={`cell-${index}`} fill={entry.color} />
-                    ))}
-                  </Pie>
-                  <Tooltip
-                    contentStyle={{
-                      backgroundColor: "hsl(var(--card))",
-                      border: "1px solid hsl(var(--border))",
-                      borderRadius: "8px",
-                      color: "hsl(var(--card-foreground))",
-                    }}
-                  />
-                  <Legend
-                    verticalAlign="bottom"
-                    height={36}
-                    formatter={(value) => (
-                      <span className="text-xs text-muted-foreground">
-                        {value}
-                      </span>
-                    )}
-                  />
-                </PieChart>
-              </ResponsiveContainer>
-            </div>
-          </CardContent>
-        </Card>
+    <div className="flex h-screen overflow-hidden bg-background">
+      <DashboardSidebar activeTab={activeTab} onTabChange={setActiveTab} />
 
-        {/* Bar Chart */}
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-base font-semibold text-card-foreground">
-              Weekly Activity
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="h-64">
-              <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={barData} barGap={4}>
-                  <CartesianGrid
-                    strokeDasharray="3 3"
-                    vertical={false}
-                    stroke="hsl(var(--border))"
-                  />
-                  <XAxis
-                    dataKey="day"
-                    tick={{ fontSize: 12, fill: "hsl(var(--muted-foreground))" }}
-                    axisLine={false}
-                    tickLine={false}
-                  />
-                  <YAxis
-                    tick={{ fontSize: 12, fill: "hsl(var(--muted-foreground))" }}
-                    axisLine={false}
-                    tickLine={false}
-                  />
-                  <Tooltip
-                    contentStyle={{
-                      backgroundColor: "hsl(var(--card))",
-                      border: "1px solid hsl(var(--border))",
-                      borderRadius: "8px",
-                      color: "hsl(var(--card-foreground))",
+      <div className="flex-1 flex flex-col overflow-hidden">
+        <DashboardNavbar activeTab={activeTab} onTabChange={setActiveTab} />
+
+        <ScrollArea className="flex-1">
+          <main className="p-4 lg:p-6 max-w-6xl mx-auto w-full">
+
+            {activeTab === "Analytics" ? (
+              <AnalyticsSection tasks={tasks} />
+
+            ) : activeTab === "FocusMode" ? (
+              <FocusModeSection />
+
+            ) : activeTab === "AIAssistant" ? (
+              <AIAssistantSection />
+
+            ) : (
+              <div className="flex flex-col gap-6">
+
+                {/* Summary only on main dashboard */}
+                {activeTab === "all" && <CategorySummary tasks={tasks} />}
+
+                {/* Search + Add */}
+                <div className="flex items-center gap-3">
+                  <div className="relative flex-1">
+                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-muted-foreground" />
+                    <Input
+                      placeholder="Search tasks..."
+                      value={searchQuery}
+                      onChange={(e) => setSearchQuery(e.target.value)}
+                      className="pl-9"
+                    />
+                  </div>
+                  <Button
+                    onClick={() => {
+                      setEditTask(null)
+                      setAddModalOpen(true)
                     }}
-                  />
-                  <Legend
-                    formatter={(value) => (
-                      <span className="text-xs text-muted-foreground">
-                        {value}
-                      </span>
-                    )}
-                  />
-                  <Bar
-                    dataKey="completed"
-                    fill="#10b981"
-                    radius={[4, 4, 0, 0]}
-                    name="Completed"
-                  />
-                  <Bar
-                    dataKey="added"
-                    fill="#3b82f6"
-                    radius={[4, 4, 0, 0]}
-                    name="Added"
-                  />
-                </BarChart>
-              </ResponsiveContainer>
-            </div>
-          </CardContent>
-        </Card>
+                  >
+                    <Plus className="mr-2 size-4" />
+                    Add Task
+                  </Button>
+                </div>
+
+                {/* Task List */}
+                {isLoading ? (
+                  <div className="flex flex-col gap-3">
+                    {Array.from({ length: 4 }).map((_, i) => (
+                      <Skeleton key={i} className="h-24 w-full rounded-lg" />
+                    ))}
+                  </div>
+                ) : filteredTasks.length === 0 ? (
+                  <div className="flex flex-col items-center justify-center py-16 text-center">
+                    <div className="size-16 rounded-full bg-muted flex items-center justify-center mb-4">
+                      <Search className="size-6 text-muted-foreground" />
+                    </div>
+                    <h3 className="text-lg font-medium text-foreground">
+                      No tasks found
+                    </h3>
+                    <p className="text-sm text-muted-foreground mt-1">
+                      {searchQuery
+                        ? "Try a different search term"
+                        : "Click \"Add Task\" to get started"}
+                    </p>
+                  </div>
+                ) : (
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                    {filteredTasks.map((task) => (
+                      <TaskCard
+                        key={task.id}
+                        task={task}
+                        onEdit={handleEdit}
+                        onDelete={handleDelete}
+                        onToggleComplete={toggleComplete}
+                      />
+                    ))}
+                  </div>
+                )}
+
+              </div>
+            )}
+          </main>
+        </ScrollArea>
       </div>
 
-      {/* Productivity Score */}
-      <Card>
-        <CardHeader className="pb-2">
-          <CardTitle className="text-base font-semibold text-card-foreground">
-            Productivity Score
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="flex flex-col sm:flex-row items-center gap-8">
-            {/* Circular Progress */}
-            <div className="relative flex items-center justify-center shrink-0">
-              <svg
-                className="transform -rotate-90"
-                width="180"
-                height="180"
-                viewBox="0 0 180 180"
-              >
-                <circle
-                  cx="90"
-                  cy="90"
-                  r={radius}
-                  strokeWidth="12"
-                  fill="none"
-                  className="stroke-muted"
-                />
-                <circle
-                  cx="90"
-                  cy="90"
-                  r={radius}
-                  strokeWidth="12"
-                  fill="none"
-                  strokeLinecap="round"
-                  className="stroke-primary transition-all duration-700"
-                  style={{
-                    strokeDasharray: circumference,
-                    strokeDashoffset: offset,
-                  }}
-                />
-              </svg>
-              <div className="absolute flex flex-col items-center">
-                <span className="text-3xl font-bold text-foreground">
-                  {productivityScore}%
-                </span>
-                <span className="text-xs text-muted-foreground">Score</span>
-              </div>
-            </div>
-
-            {/* Stats */}
-            <div className="flex-1 grid grid-cols-2 gap-4 w-full">
-              <div className="rounded-xl border border-border bg-card p-4 text-center">
-                <p className="text-2xl font-bold text-foreground">{totalTasks}</p>
-                <p className="text-xs text-muted-foreground mt-1">Total Tasks</p>
-              </div>
-              <div className="rounded-xl border border-border bg-card p-4 text-center">
-                <p className="text-2xl font-bold text-emerald-500">{completedTasks}</p>
-                <p className="text-xs text-muted-foreground mt-1">Completed</p>
-              </div>
-              <div className="rounded-xl border border-border bg-card p-4 text-center">
-                <p className="text-2xl font-bold text-amber-500">
-                  {tasks.filter((t) => t.priority === "High" && !t.completed).length}
-                </p>
-                <p className="text-xs text-muted-foreground mt-1">High Priority</p>
-              </div>
-              <div className="rounded-xl border border-border bg-card p-4 text-center">
-                <p className="text-2xl font-bold text-blue-500">
-                  {tasks.filter((t) => !t.completed).length}
-                </p>
-                <p className="text-xs text-muted-foreground mt-1">Remaining</p>
-              </div>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
+      <AddTaskModal
+        open={addModalOpen}
+        onOpenChange={(open) => {
+          setAddModalOpen(open)
+          if (!open) setEditTask(null)
+        }}
+        onSubmit={handleAddOrUpdate}
+        editTask={editTask}
+      />
     </div>
   )
 }
