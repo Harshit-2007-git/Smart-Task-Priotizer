@@ -45,19 +45,19 @@ export function TaskCard({ task, onEdit, onDelete, onToggleComplete }: TaskCardP
 
       <CardContent className="p-4 pl-5">
         <div className="flex items-start gap-3">
-          
-          {/* Checkbox */}
+
+          {/* ✅ FIXED CHECKBOX */}
           <div className="pt-0.5">
             <Checkbox
               checked={task.completed}
-              onCheckedChange={async () => {
-                await onToggleComplete(task.id)
+              onCheckedChange={() => {
+                onToggleComplete(task.id)
 
-                toast.success(
-                  task.completed
-                    ? "Marked incomplete"
-                    : "Task completed! 🎉"
-                )
+                if (!task.completed) {
+                  toast.success("Task completed! 🎉")
+                } else {
+                  toast.success("Marked incomplete")
+                }
               }}
               aria-label={`Mark ${task.title} as ${
                 task.completed ? "incomplete" : "complete"
@@ -67,7 +67,7 @@ export function TaskCard({ task, onEdit, onDelete, onToggleComplete }: TaskCardP
 
           {/* Content */}
           <div className="flex-1 min-w-0">
-            
+
             {/* Title + Actions */}
             <div className="flex items-start justify-between gap-2">
               <h3
@@ -81,7 +81,7 @@ export function TaskCard({ task, onEdit, onDelete, onToggleComplete }: TaskCardP
 
               {/* Actions */}
               <div className="flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity shrink-0">
-                
+
                 {/* Edit */}
                 <TooltipProvider>
                   <Tooltip>
@@ -100,7 +100,7 @@ export function TaskCard({ task, onEdit, onDelete, onToggleComplete }: TaskCardP
                   </Tooltip>
                 </TooltipProvider>
 
-                {/* Delete with Undo */}
+                {/* Delete */}
                 <TooltipProvider>
                   <Tooltip>
                     <TooltipTrigger asChild>
@@ -148,7 +148,7 @@ export function TaskCard({ task, onEdit, onDelete, onToggleComplete }: TaskCardP
 
             {/* Meta Row */}
             <div className="flex items-center gap-2 mt-2.5 flex-wrap">
-              
+
               {/* Priority */}
               <Badge
                 variant="outline"
@@ -194,11 +194,6 @@ export function TaskCard({ task, onEdit, onDelete, onToggleComplete }: TaskCardP
                   : format(deadlineDate, "MMM d")}
               </span>
             </div>
-            {task.completed && task.completed_at && (
-  <p className="text-xs text-green-600 mt-1">
-    Completed on: {new Date(task.completed_at).toLocaleDateString()}
-  </p>
-)}
 
           </div>
         </div>
