@@ -15,7 +15,6 @@ import { cn } from "@/lib/utils"
 import type { Task } from "@/lib/types"
 import { categoryColors, priorityColors } from "@/lib/types"
 import { format, isPast, isToday } from "date-fns"
-import { toast } from "sonner"
 
 interface TaskCardProps {
   task: Task
@@ -24,7 +23,12 @@ interface TaskCardProps {
   onToggleComplete: (id: string) => Promise<void> | void
 }
 
-export function TaskCard({ task, onEdit, onDelete, onToggleComplete }: TaskCardProps) {
+export function TaskCard({
+  task,
+  onEdit,
+  onDelete,
+  onToggleComplete,
+}: TaskCardProps) {
   const catColor = categoryColors[task.category]
   const priColor = priorityColors[task.priority]
 
@@ -46,19 +50,11 @@ export function TaskCard({ task, onEdit, onDelete, onToggleComplete }: TaskCardP
       <CardContent className="p-4 pl-5">
         <div className="flex items-start gap-3">
 
-          {/* ✅ FIXED CHECKBOX */}
+          {/* ✅ CLEAN CHECKBOX (NO BUGS) */}
           <div className="pt-0.5">
             <Checkbox
               checked={task.completed}
-              onCheckedChange={() => {
-                onToggleComplete(task.id)
-
-                if (!task.completed) {
-                  toast.success("Task completed! 🎉")
-                } else {
-                  toast.success("Marked incomplete")
-                }
-              }}
+              onCheckedChange={() => onToggleComplete(task.id)}
               aria-label={`Mark ${task.title} as ${
                 task.completed ? "incomplete" : "complete"
               }`}
@@ -108,25 +104,7 @@ export function TaskCard({ task, onEdit, onDelete, onToggleComplete }: TaskCardP
                         variant="ghost"
                         size="icon"
                         className="size-7 text-destructive hover:text-destructive"
-                        onClick={() => {
-                          onDelete(task.id)
-
-                          toast("Task deleted", {
-                            action: {
-                              label: "Undo",
-                              onClick: async () => {
-                                await fetch("/api/tasks", {
-                                  method: "POST",
-                                  headers: {
-                                    "Content-Type": "application/json",
-                                  },
-                                  body: JSON.stringify(task),
-                                })
-                                toast.success("Task restored")
-                              },
-                            },
-                          })
-                        }}
+                        onClick={() => onDelete(task.id)}
                       >
                         <Trash2 className="size-3.5" />
                         <span className="sr-only">Delete task</span>
