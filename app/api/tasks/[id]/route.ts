@@ -10,30 +10,16 @@ export async function PATCH(
     process.env.SUPABASE_SERVICE_ROLE_KEY!
   )
 
-  const body = await request.json()
-
-  // ✅ Smart update logic
-  const updateData: any = {
-    ...body,
-  }
-
-  // 👉 If marking completed → add timestamp
-  if (body.completed === true) {
-    updateData.completed_at = new Date().toISOString()
-  }
-
-  // 👉 If unchecking → remove timestamp
-  if (body.completed === false) {
-    updateData.completed_at = null
-  }
+  const { completed } = await request.json()
 
   const { data, error } = await supabase
     .from("tasks")
-    .update(updateData)
+    .update({ completed }) // ✅ ONLY THIS
     .eq("id", params.id)
     .select()
 
   if (error) {
+    console.error(error)
     return NextResponse.json({ error }, { status: 400 })
   }
 
