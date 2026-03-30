@@ -1,6 +1,13 @@
 "use client"
 
-import { createContext, useContext, useState, useCallback, useEffect, type ReactNode } from "react"
+import {
+  createContext,
+  useContext,
+  useState,
+  useCallback,
+  useEffect,
+  type ReactNode,
+} from "react"
 import type { Task, Category, Priority } from "./types"
 
 interface TaskContextType {
@@ -9,7 +16,7 @@ interface TaskContextType {
   addTask: (task: Omit<Task, "id" | "completed" | "createdAt">) => Promise<void>
   updateTask: (id: string, updates: Partial<Task>) => Promise<void>
   deleteTask: (id: string) => Promise<void>
-  toggleComplete: (id: string) => void
+  toggleComplete: (id: string) => Promise<void>
   getTasksByCategory: (category: Category) => Task[]
   getTasksByPriority: (priority: Priority) => Task[]
 }
@@ -20,20 +27,22 @@ export function TaskProvider({ children }: { children: ReactNode }) {
   const [tasks, setTasks] = useState<Task[]>([])
   const [isLoading, setIsLoading] = useState(true)
 
-  useEffect(() => {
-    async function fetchTasks() {
-      try {
-        const res = await fetch("/api/tasks")
-        const data = await res.json()
-        setTasks(data.tasks)
-      } catch (error) {
-        console.error("Failed to fetch tasks:", error)
-      } finally {
-        setIsLoading(false)
-      }
+  // 🔥 GLOBAL fetchTasks (FIXED)
+  const fetchTasks = useCallback(async () => {
+    try {
+      const res = await fetch("/api/tasks")
+      const data = await res.json()
+      setTasks(data.tasks || [])
+    } catch (error) {
+      console.error("Failed to fetch tasks:", error)
+    } finally {
+      setIsLoading(false)
     }
-    fetchTasks()
   }, [])
+
+  useEffect(() => {
+    fetchTasks()
+  }, [fetchTasks])
 
   const addTask = useCallback(async (task: Omit<Task, "id" | "completed" | "createdAt">) => {
     try {
@@ -43,26 +52,27 @@ export function TaskProvider({ children }: { children: ReactNode }) {
         body: JSON.stringify(task),
       })
       const data = await res.json()
-      setTasks((prev) => [...prev, data.task])
+
+      // 🔥 Refresh instead of manual update
+      await fetchTasks()
     } catch (error) {
       console.error("Failed to add task:", error)
     }
-  }, [])
+  }, [fetchTasks])
 
   const updateTask = useCallback(async (id: string, updates: Partial<Task>) => {
     try {
       await fetch(`/api/tasks/${id}`, {
-        method: "PUT",
+        method: "PATCH", // 🔥 FIXED (was PUT)
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(updates),
       })
-      setTasks((prev) =>
-        prev.map((t) => (t.id === id ? { ...t, ...updates } : t))
-      )
+
+      await fetchTasks()
     } catch (error) {
       console.error("Failed to update task:", error)
     }
-  }, [])
+  }, [fetchTasks])
 
   const deleteTask = useCallback(async (id: string) => {
     try {
@@ -73,29 +83,35 @@ export function TaskProvider({ children }: { children: ReactNode }) {
     }
   }, [])
 
-  const toggleComplete = async (id: string) => {
-  const task = tasks.find((t) => t.id === id)
+  const toggleComplete = useCallback(async (id: string) => {
+    try {
+      const task = tasks.find((t) => t.id === id)
+      if (!task) return
 
-  const updatedCompleted = !task?.completed
+      const updatedCompleted = !task.completed
 
-  const res = await fetch(`/api/tasks/${id}`, {
-    method: "PATCH",
-    headers: {
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({
-      completed: updatedCompleted,
-    }),
-  })
+      const res = await fetch(`/api/tasks/${id}`, {
+        method: "PATCH",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          completed: updatedCompleted,
+        }),
+      })
 
-  if (!res.ok) {
-    console.error("Failed to update task")
-    return
-  }
+      if (!res.ok) {
+        console.error("Failed to update task")
+        return
+      }
 
-  // 🔥 refresh tasks after update
-  fetchTasks()
-}
+      // 🔥 THIS WAS MISSING PROPERLY
+      await fetchTasks()
+
+    } catch (error) {
+      console.error("Toggle failed:", error)
+    }
+  }, [tasks, fetchTasks])
 
   const getTasksByCategory = useCallback(
     (category: Category) => tasks.filter((t) => t.category === category),
