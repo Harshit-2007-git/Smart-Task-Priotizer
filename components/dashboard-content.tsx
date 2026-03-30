@@ -14,27 +14,40 @@ import { Skeleton } from "@/components/ui/skeleton"
 import { Plus, Search } from "lucide-react"
 import { Input } from "@/components/ui/input"
 import { toast } from "sonner"
-import type { Task, Category } from "@/lib/types"
+import type { Task } from "@/lib/types"
 
 export function DashboardContent() {
   const { tasks, isLoading, addTask, updateTask, deleteTask, toggleComplete } =
     useTasks()
+
   const [activeTab, setActiveTab] = useState("all")
   const [addModalOpen, setAddModalOpen] = useState(false)
   const [editTask, setEditTask] = useState<Task | null>(null)
   const [searchQuery, setSearchQuery] = useState("")
 
+  // 🔥 FINAL FILTER LOGIC (THIS FIXES EVERYTHING)
   const filteredTasks = tasks.filter((task) => {
-  const matchesSearch =
-    task.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    task.description.toLowerCase().includes(searchQuery.toLowerCase())
+    const matchesSearch =
+      task.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      task.description.toLowerCase().includes(searchQuery.toLowerCase())
 
-  if (activeTab === "Completed") {
-    return task.completed && matchesSearch
-  }
+    // ✅ COMPLETED TAB
+    if (activeTab === "Completed") {
+      return task.completed && matchesSearch
+    }
 
-  return !task.completed && matchesSearch
-})
+    // ✅ CATEGORY TABS (only active tasks)
+    if (activeTab !== "all" && activeTab !== "Analytics") {
+      return (
+        !task.completed &&
+        task.category === activeTab &&
+        matchesSearch
+      )
+    }
+
+    // ✅ DEFAULT (dashboard)
+    return !task.completed && matchesSearch
+  })
 
   const handleAddOrUpdate = async (
     taskData: Omit<Task, "id" | "completed" | "createdAt">
@@ -72,7 +85,8 @@ export function DashboardContent() {
               <AnalyticsSection tasks={tasks} />
             ) : (
               <div className="flex flex-col gap-6">
-                {/* Summary Cards - only on "all" tab */}
+
+                {/* Summary only on main dashboard */}
                 {activeTab === "all" && <CategorySummary tasks={tasks} />}
 
                 {/* Search + Add */}
@@ -131,6 +145,7 @@ export function DashboardContent() {
                     ))}
                   </div>
                 )}
+
               </div>
             )}
           </main>
