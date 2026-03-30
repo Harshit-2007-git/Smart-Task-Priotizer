@@ -1,5 +1,6 @@
 "use client"
 
+import { useState } from "react"
 import { Card, CardContent } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
@@ -32,6 +33,23 @@ export function TaskCard({
   const catColor = categoryColors[task.category]
   const priColor = priorityColors[task.priority]
 
+  // Local animation state: when checked, animate out before calling toggle
+  const [isAnimatingOut, setIsAnimatingOut] = useState(false)
+
+  const handleComplete = async () => {
+    // Only animate out when marking as complete (not unchecking)
+    if (!task.completed) {
+      setIsAnimatingOut(true)
+      // Wait for animation to finish then call the actual toggle
+      setTimeout(async () => {
+        await onToggleComplete(task.id)
+      }, 400)
+    } else {
+      // If unchecking from Completed tab, just toggle immediately
+      await onToggleComplete(task.id)
+    }
+  }
+
   const deadlineDate = new Date(task.deadline)
   const isOverdue =
     isPast(deadlineDate) && !isToday(deadlineDate) && !task.completed
@@ -40,9 +58,11 @@ export function TaskCard({
   return (
     <Card
       className={cn(
-        "group relative overflow-hidden border transition-all duration-200 hover:shadow-lg hover:-translate-y-0.5",
-        task.completed && "opacity-60 bg-gray-50"
+        "group relative overflow-hidden border transition-all duration-300 hover:shadow-lg hover:-translate-y-0.5",
+        isAnimatingOut && "opacity-0 scale-95 translate-x-2 pointer-events-none",
+        task.completed && "opacity-60"
       )}
+      style={{ transition: isAnimatingOut ? "all 0.4s ease" : undefined }}
     >
       {/* Category Accent Bar */}
       <div className={cn("absolute top-0 left-0 w-1 h-full", catColor.dot)} />
@@ -50,14 +70,18 @@ export function TaskCard({
       <CardContent className="p-4 pl-5">
         <div className="flex items-start gap-3">
 
-          {/* ✅ CLEAN CHECKBOX (NO BUGS) */}
+          {/* Checkbox */}
           <div className="pt-0.5">
             <Checkbox
               checked={task.completed}
-              onCheckedChange={() => onToggleComplete(task.id)}
+              onCheckedChange={handleComplete}
               aria-label={`Mark ${task.title} as ${
                 task.completed ? "incomplete" : "complete"
               }`}
+              className={cn(
+                "transition-all duration-200",
+                task.completed && "border-emerald-500 bg-emerald-500"
+              )}
             />
           </div>
 
@@ -68,7 +92,7 @@ export function TaskCard({
             <div className="flex items-start justify-between gap-2">
               <h3
                 className={cn(
-                  "text-sm font-medium leading-snug text-card-foreground",
+                  "text-sm font-medium leading-snug text-card-foreground transition-all duration-200",
                   task.completed && "line-through text-muted-foreground"
                 )}
               >
@@ -78,23 +102,25 @@ export function TaskCard({
               {/* Actions */}
               <div className="flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity shrink-0">
 
-                {/* Edit */}
-                <TooltipProvider>
-                  <Tooltip>
-                    <TooltipTrigger asChild>
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        className="size-7"
-                        onClick={() => onEdit(task)}
-                      >
-                        <Pencil className="size-3.5" />
-                        <span className="sr-only">Edit task</span>
-                      </Button>
-                    </TooltipTrigger>
-                    <TooltipContent>Edit</TooltipContent>
-                  </Tooltip>
-                </TooltipProvider>
+                {/* Edit — hide on completed tasks */}
+                {!task.completed && (
+                  <TooltipProvider>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="size-7"
+                          onClick={() => onEdit(task)}
+                        >
+                          <Pencil className="size-3.5" />
+                          <span className="sr-only">Edit task</span>
+                        </Button>
+                      </TooltipTrigger>
+                      <TooltipContent>Edit</TooltipContent>
+                    </Tooltip>
+                  </TooltipProvider>
+                )}
 
                 {/* Delete */}
                 <TooltipProvider>
@@ -171,6 +197,17 @@ export function TaskCard({
                   ? "Due today"
                   : format(deadlineDate, "MMM d")}
               </span>
+
+              {/* Completed badge */}
+              {task.completed && (
+                <Badge
+                  variant="outline"
+                  className="text-[11px] px-1.5 py-0 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/20"
+                >
+                  ✓ Done
+                </Badge>
+              )}
+
             </div>
 
           </div>
