@@ -1,7 +1,6 @@
 "use client"
 
 import { useState } from "react"
-import Link from "next/link"
 import { usePathname } from "next/navigation"
 import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
@@ -18,6 +17,8 @@ import {
   BarChart3,
   ChevronLeft,
   ChevronRight,
+  Timer,
+  Bot,
 } from "lucide-react"
 
 const sidebarLinks = [
@@ -29,6 +30,8 @@ const sidebarLinks = [
   { label: "Personal Goals", href: "/dashboard?tab=Personal", icon: Target, dot: "bg-purple-500" },
   { label: "Completed", href: "/dashboard?tab=Completed", icon: CheckCircle2, dot: "bg-gray-500" },
   { label: "Analytics", href: "/dashboard?tab=Analytics", icon: BarChart3 },
+  { label: "Focus Mode", href: "/dashboard?tab=FocusMode", icon: Timer, dot: "bg-cyan-500" },
+  { label: "AI Assistant", href: "/dashboard?tab=AIAssistant", icon: Bot, dot: "bg-pink-500" },
 ]
 
 interface DashboardSidebarProps {
