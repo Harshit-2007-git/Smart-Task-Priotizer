@@ -11,7 +11,6 @@ import { AnalyticsSection } from "@/components/analytics-section"
 import { FocusModeSection } from "@/components/focus-mode-section"
 import { AIAssistantSection } from "@/components/ai-assistant-section"
 import { Button } from "@/components/ui/button"
-import { ScrollArea } from "@/components/ui/scroll-area"
 import { Skeleton } from "@/components/ui/skeleton"
 import { Plus, Search, CheckCircle2 } from "lucide-react"
 import { Input } from "@/components/ui/input"
@@ -32,17 +31,14 @@ export function DashboardContent() {
       task.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
       task.description.toLowerCase().includes(searchQuery.toLowerCase())
 
-    // ✅ FIX: Completed tab — show tasks where completed === true
     if (activeTab === "Completed") {
       return task.completed && matchesSearch
     }
 
-    // ✅ FIX: All other category tabs — show only non-completed tasks matching that category
     if (activeTab !== "all") {
       return !task.completed && task.category === activeTab && matchesSearch
     }
 
-    // Dashboard "all" tab — show all non-completed tasks
     return !task.completed && matchesSearch
   })
 
@@ -72,14 +68,19 @@ export function DashboardContent() {
   const completedCount = tasks.filter((t) => t.completed).length
 
   return (
-    <div className="flex h-screen overflow-hidden bg-background">
+    // ✅ FIX: removed overflow-hidden so the page can scroll naturally
+    <div className="flex min-h-screen bg-background">
       <DashboardSidebar activeTab={activeTab} onTabChange={setActiveTab} />
 
-      <div className="flex-1 flex flex-col overflow-hidden">
-        <DashboardNavbar activeTab={activeTab} onTabChange={setActiveTab} />
+      <div className="flex-1 flex flex-col">
+        {/* Sticky navbar */}
+        <div className="sticky top-0 z-10">
+          <DashboardNavbar activeTab={activeTab} onTabChange={setActiveTab} />
+        </div>
 
-        <ScrollArea className="flex-1">
-          <main className="p-4 lg:p-6 max-w-6xl mx-auto w-full">
+        {/* Scrollable main content */}
+        <main className="flex-1 overflow-y-auto p-4 lg:p-6">
+          <div className="max-w-6xl mx-auto w-full">
 
             {activeTab === "Analytics" ? (
               <AnalyticsSection tasks={tasks} />
@@ -93,10 +94,8 @@ export function DashboardContent() {
             ) : (
               <div className="flex flex-col gap-6">
 
-                {/* Summary only on main dashboard */}
                 {activeTab === "all" && <CategorySummary tasks={tasks} />}
 
-                {/* Completed tab header */}
                 {activeTab === "Completed" && (
                   <div className="flex items-center gap-3">
                     <div className="flex items-center gap-2">
@@ -111,7 +110,6 @@ export function DashboardContent() {
                   </div>
                 )}
 
-                {/* Search + Add (hide Add on Completed tab) */}
                 <div className="flex items-center gap-3">
                   <div className="relative flex-1">
                     <Search className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-muted-foreground" />
@@ -135,7 +133,6 @@ export function DashboardContent() {
                   )}
                 </div>
 
-                {/* Task List */}
                 {isLoading ? (
                   <div className="flex flex-col gap-3">
                     {Array.from({ length: 4 }).map((_, i) => (
@@ -180,8 +177,8 @@ export function DashboardContent() {
 
               </div>
             )}
-          </main>
-        </ScrollArea>
+          </div>
+        </main>
       </div>
 
       <AddTaskModal
