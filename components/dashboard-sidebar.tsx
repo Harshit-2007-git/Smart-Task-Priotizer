@@ -1,7 +1,6 @@
 "use client"
 
 import { useState } from "react"
-import { usePathname } from "next/navigation"
 import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
 import { ScrollArea } from "@/components/ui/scroll-area"
@@ -41,12 +40,12 @@ interface DashboardSidebarProps {
 
 export function DashboardSidebar({ activeTab, onTabChange }: DashboardSidebarProps) {
   const [collapsed, setCollapsed] = useState(false)
-  const pathname = usePathname()
 
   return (
+    // ✅ FIX: sticky + h-screen so sidebar stays visible while page scrolls
     <aside
       className={cn(
-        "hidden md:flex flex-col border-r border-sidebar-border bg-sidebar transition-all duration-300",
+        "hidden md:flex flex-col border-r border-sidebar-border bg-sidebar sticky top-0 h-screen transition-all duration-300 shrink-0",
         collapsed ? "w-16" : "w-64"
       )}
     >
@@ -92,12 +91,7 @@ export function DashboardSidebar({ activeTab, onTabChange }: DashboardSidebarPro
                 <div className="relative shrink-0">
                   <link.icon className="size-4" />
                   {link.dot && (
-                    <span
-                      className={cn(
-                        "absolute -top-0.5 -right-0.5 size-2 rounded-full",
-                        link.dot
-                      )}
-                    />
+                    <span className={cn("absolute -top-0.5 -right-0.5 size-2 rounded-full", link.dot)} />
                   )}
                 </div>
                 {!collapsed && <span className="truncate">{link.label}</span>}
@@ -108,18 +102,14 @@ export function DashboardSidebar({ activeTab, onTabChange }: DashboardSidebarPro
       </ScrollArea>
 
       {/* Collapse Toggle */}
-      <div className="border-t border-sidebar-border p-2">
+      <div className="border-t border-sidebar-border p-2 shrink-0">
         <Button
           variant="ghost"
           size="sm"
           className="w-full justify-center"
           onClick={() => setCollapsed(!collapsed)}
         >
-          {collapsed ? (
-            <ChevronRight className="size-4" />
-          ) : (
-            <ChevronLeft className="size-4" />
-          )}
+          {collapsed ? <ChevronRight className="size-4" /> : <ChevronLeft className="size-4" />}
           {!collapsed && <span className="ml-2 text-xs">Collapse</span>}
         </Button>
       </div>
