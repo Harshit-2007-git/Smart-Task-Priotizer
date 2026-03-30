@@ -13,7 +13,7 @@ import { AIAssistantSection } from "@/components/ai-assistant-section"
 import { Button } from "@/components/ui/button"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { Skeleton } from "@/components/ui/skeleton"
-import { Plus, Search } from "lucide-react"
+import { Plus, Search, CheckCircle2 } from "lucide-react"
 import { Input } from "@/components/ui/input"
 import { toast } from "sonner"
 import type { Task } from "@/lib/types"
@@ -32,15 +32,18 @@ export function DashboardContent() {
       task.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
       task.description.toLowerCase().includes(searchQuery.toLowerCase())
 
+    // ✅ FIX: Completed tab — show tasks where completed === true
     if (activeTab === "Completed") {
       return task.completed && matchesSearch
     }
 
-    if (activeTab === "all") {
-      return !task.completed && matchesSearch
+    // ✅ FIX: All other category tabs — show only non-completed tasks matching that category
+    if (activeTab !== "all") {
+      return !task.completed && task.category === activeTab && matchesSearch
     }
 
-    return !task.completed && task.category === activeTab && matchesSearch
+    // Dashboard "all" tab — show all non-completed tasks
+    return !task.completed && matchesSearch
   })
 
   const handleAddOrUpdate = async (
@@ -66,8 +69,7 @@ export function DashboardContent() {
     setAddModalOpen(true)
   }
 
-  // Tabs that show the full-page custom UI (no task list / search bar)
-  const isSpecialTab = activeTab === "Analytics" || activeTab === "FocusMode" || activeTab === "AIAssistant"
+  const completedCount = tasks.filter((t) => t.completed).length
 
   return (
     <div className="flex h-screen overflow-hidden bg-background">
@@ -94,7 +96,22 @@ export function DashboardContent() {
                 {/* Summary only on main dashboard */}
                 {activeTab === "all" && <CategorySummary tasks={tasks} />}
 
-                {/* Search + Add */}
+                {/* Completed tab header */}
+                {activeTab === "Completed" && (
+                  <div className="flex items-center gap-3">
+                    <div className="flex items-center gap-2">
+                      <CheckCircle2 className="size-5 text-emerald-500" />
+                      <h2 className="text-lg font-semibold text-foreground">
+                        Completed Tasks
+                      </h2>
+                    </div>
+                    <span className="text-sm text-muted-foreground bg-muted px-2 py-0.5 rounded-full">
+                      {completedCount} task{completedCount !== 1 ? "s" : ""}
+                    </span>
+                  </div>
+                )}
+
+                {/* Search + Add (hide Add on Completed tab) */}
                 <div className="flex items-center gap-3">
                   <div className="relative flex-1">
                     <Search className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-muted-foreground" />
@@ -105,15 +122,17 @@ export function DashboardContent() {
                       className="pl-9"
                     />
                   </div>
-                  <Button
-                    onClick={() => {
-                      setEditTask(null)
-                      setAddModalOpen(true)
-                    }}
-                  >
-                    <Plus className="mr-2 size-4" />
-                    Add Task
-                  </Button>
+                  {activeTab !== "Completed" && (
+                    <Button
+                      onClick={() => {
+                        setEditTask(null)
+                        setAddModalOpen(true)
+                      }}
+                    >
+                      <Plus className="mr-2 size-4" />
+                      Add Task
+                    </Button>
+                  )}
                 </div>
 
                 {/* Task List */}
@@ -126,13 +145,21 @@ export function DashboardContent() {
                 ) : filteredTasks.length === 0 ? (
                   <div className="flex flex-col items-center justify-center py-16 text-center">
                     <div className="size-16 rounded-full bg-muted flex items-center justify-center mb-4">
-                      <Search className="size-6 text-muted-foreground" />
+                      {activeTab === "Completed" ? (
+                        <CheckCircle2 className="size-6 text-muted-foreground" />
+                      ) : (
+                        <Search className="size-6 text-muted-foreground" />
+                      )}
                     </div>
                     <h3 className="text-lg font-medium text-foreground">
-                      No tasks found
+                      {activeTab === "Completed"
+                        ? "No completed tasks yet"
+                        : "No tasks found"}
                     </h3>
                     <p className="text-sm text-muted-foreground mt-1">
-                      {searchQuery
+                      {activeTab === "Completed"
+                        ? "Complete a task by checking the checkbox on any task card"
+                        : searchQuery
                         ? "Try a different search term"
                         : "Click \"Add Task\" to get started"}
                     </p>
