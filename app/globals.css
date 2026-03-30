@@ -119,7 +119,18 @@
   * {
     @apply border-border outline-ring/50;
   }
+
+  /* FIX: allow page to scroll properly */
+  html,
   body {
+    height: 100%;
+    overflow: auto;
     @apply bg-background text-foreground;
+  }
+
+  /* FIX: make the root div scrollable too */
+  #__next,
+  [data-nextjs-scroll-focus-boundary] {
+    height: 100%;
   }
 }
