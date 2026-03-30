@@ -194,6 +194,11 @@ export function TaskCard({ task, onEdit, onDelete, onToggleComplete }: TaskCardP
                   : format(deadlineDate, "MMM d")}
               </span>
             </div>
+            {task.completed && task.completed_at && (
+  <p className="text-xs text-green-600 mt-1">
+    Completed on: {new Date(task.completed_at).toLocaleDateString()}
+  </p>
+)}
 
           </div>
         </div>
