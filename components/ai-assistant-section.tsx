@@ -8,7 +8,7 @@ import { Badge } from "@/components/ui/badge"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { cn } from "@/lib/utils"
 import { Bot, Send, Sparkles, Loader2, User, Lightbulb, ListOrdered, RefreshCw } from "lucide-react"
-import { priorityColors, categoryColors } from "@/lib/types"
+import { priorityColors } from "@/lib/types"
 import type { Task } from "@/lib/types"
 
 interface Message {
@@ -57,7 +57,7 @@ export function AIAssistantSection() {
     setIsLoading(true)
 
     try {
-      const systemPrompt = `You are a smart academic task prioritization assistant for a student productivity app. 
+      const systemPrompt = `You are a smart academic task prioritization assistant for a student productivity app.
 You have access to the student's current tasks:
 
 ${taskSummary}
@@ -68,33 +68,35 @@ Your job is to:
 3. Give motivational and practical productivity advice
 4. Be concise, friendly, and actionable
 
-Always reference the actual task names when giving advice. Format your responses with clear structure when listing things.`
+Always reference the actual task names when giving advice.`
 
-      const response = await fetch("https://api.groq.com/openai/v1/chat/completions", {
+      // ✅ FIX: call our own Next.js API route — key stays on server
+      const response = await fetch("/api/ai", {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${process.env.NEXT_PUBLIC_GROQ_API_KEY}`,
-        },
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          model: "llama3-8b-8192",
-          messages: [
-            { role: "system", content: systemPrompt },
-            ...updatedMessages.map((m) => ({ role: m.role, content: m.content })),
-          ],
-          max_tokens: 600,
-          temperature: 0.7,
+          systemPrompt,
+          messages: updatedMessages.map((m) => ({
+            role: m.role,
+            content: m.content,
+          })),
         }),
       })
 
       const data = await response.json()
-      const reply = data.choices?.[0]?.message?.content ?? "Sorry, I couldn't get a response. Please check your Groq API key."
 
-      setMessages((prev) => [...prev, { role: "assistant", content: reply }])
-    } catch (err) {
+      if (!response.ok) {
+        throw new Error(data.error ?? "API error")
+      }
+
+      setMessages((prev) => [...prev, { role: "assistant", content: data.reply }])
+    } catch (err: any) {
       setMessages((prev) => [
         ...prev,
-        { role: "assistant", content: "⚠️ Error connecting to AI. Make sure your NEXT_PUBLIC_GROQ_API_KEY is set in your .env.local file. Get a free key at console.groq.com" },
+        {
+          role: "assistant",
+          content: `⚠️ ${err.message ?? "Something went wrong"}. Make sure GROQ_API_KEY is set in your Vercel environment variables (without NEXT_PUBLIC_ prefix).`,
+        },
       ])
     } finally {
       setIsLoading(false)
@@ -109,12 +111,11 @@ Always reference the actual task names when giving advice. Format your responses
   })
 
   return (
-    <div className="flex flex-col lg:flex-row gap-6 h-[80vh]">
+    <div className="flex flex-col lg:flex-row gap-6" style={{ height: "calc(100vh - 120px)" }}>
 
-      {/* Left Panel: Task Overview + Quick Actions */}
+      {/* Left Panel */}
       <div className="lg:w-72 flex flex-col gap-4 shrink-0">
 
-        {/* Stats */}
         <div className="grid grid-cols-2 gap-3">
           <Card className="bg-blue-500/5 border-blue-500/20">
             <CardContent className="p-3 text-center">
@@ -138,7 +139,6 @@ Always reference the actual task names when giving advice. Format your responses
           </Card>
         </div>
 
-        {/* Quick Prompts */}
         <Card>
           <CardHeader className="pb-2 pt-3 px-3">
             <CardTitle className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Quick Questions</CardTitle>
@@ -158,7 +158,6 @@ Always reference the actual task names when giving advice. Format your responses
           </CardContent>
         </Card>
 
-        {/* Active Tasks List */}
         {activeTasks.length > 0 && (
           <Card className="flex-1 overflow-hidden">
             <CardHeader className="pb-2 pt-3 px-3">
@@ -184,7 +183,6 @@ Always reference the actual task names when giving advice. Format your responses
 
       {/* Right Panel: Chat */}
       <Card className="flex-1 flex flex-col overflow-hidden">
-        {/* Chat Header */}
         <CardHeader className="pb-3 border-b border-border shrink-0">
           <div className="flex items-center gap-3">
             <div className="size-9 rounded-full bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center">
@@ -201,7 +199,6 @@ Always reference the actual task names when giving advice. Format your responses
           </div>
         </CardHeader>
 
-        {/* Messages */}
         <ScrollArea className="flex-1 p-4">
           <div className="flex flex-col gap-4">
             {messages.map((msg, i) => (
@@ -212,31 +209,19 @@ Always reference the actual task names when giving advice. Format your responses
                   msg.role === "user" ? "flex-row-reverse" : "flex-row"
                 )}
               >
-                {/* Avatar */}
-                <div
-                  className={cn(
-                    "size-8 rounded-full flex items-center justify-center shrink-0 mt-0.5",
-                    msg.role === "user"
-                      ? "bg-blue-600"
-                      : "bg-gradient-to-br from-blue-500 to-purple-600"
-                  )}
-                >
-                  {msg.role === "user" ? (
-                    <User className="size-4 text-white" />
-                  ) : (
-                    <Bot className="size-4 text-white" />
-                  )}
+                <div className={cn(
+                  "size-8 rounded-full flex items-center justify-center shrink-0 mt-0.5",
+                  msg.role === "user" ? "bg-blue-600" : "bg-gradient-to-br from-blue-500 to-purple-600"
+                )}>
+                  {msg.role === "user" ? <User className="size-4 text-white" /> : <Bot className="size-4 text-white" />}
                 </div>
 
-                {/* Bubble */}
-                <div
-                  className={cn(
-                    "max-w-[75%] rounded-2xl px-4 py-3 text-sm leading-relaxed",
-                    msg.role === "user"
-                      ? "bg-blue-600 text-white rounded-tr-sm"
-                      : "bg-card border border-border text-foreground rounded-tl-sm"
-                  )}
-                >
+                <div className={cn(
+                  "max-w-[75%] rounded-2xl px-4 py-3 text-sm leading-relaxed",
+                  msg.role === "user"
+                    ? "bg-blue-600 text-white rounded-tr-sm"
+                    : "bg-card border border-border text-foreground rounded-tl-sm"
+                )}>
                   {msg.content.split("\n").map((line, j) => (
                     <p key={j} className={j > 0 ? "mt-1" : ""}>{line}</p>
                   ))}
@@ -244,9 +229,8 @@ Always reference the actual task names when giving advice. Format your responses
               </div>
             ))}
 
-            {/* Loading indicator */}
             {isLoading && (
-              <div className="flex gap-3 animate-in fade-in duration-200">
+              <div className="flex gap-3">
                 <div className="size-8 rounded-full bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center shrink-0">
                   <Bot className="size-4 text-white" />
                 </div>
@@ -259,7 +243,6 @@ Always reference the actual task names when giving advice. Format your responses
           </div>
         </ScrollArea>
 
-        {/* Input */}
         <div className="p-4 border-t border-border shrink-0">
           <div className="flex gap-2">
             <input
@@ -277,16 +260,9 @@ Always reference the actual task names when giving advice. Format your responses
               size="icon"
               className="size-10 rounded-xl bg-blue-600 hover:bg-blue-700 shrink-0"
             >
-              {isLoading ? (
-                <Loader2 className="size-4 animate-spin" />
-              ) : (
-                <Send className="size-4" />
-              )}
+              {isLoading ? <Loader2 className="size-4 animate-spin" /> : <Send className="size-4" />}
             </Button>
           </div>
-          <p className="text-[11px] text-muted-foreground mt-2 text-center">
-            Needs NEXT_PUBLIC_GROQ_API_KEY in .env.local · Free at console.groq.com
-          </p>
         </div>
       </Card>
     </div>
