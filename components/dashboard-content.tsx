@@ -8,6 +8,8 @@ import { TaskCard } from "@/components/task-card"
 import { AddTaskModal } from "@/components/add-task-modal"
 import { CategorySummary } from "@/components/category-summary"
 import { AnalyticsSection } from "@/components/analytics-section"
+import { FocusModeSection } from "@/components/focus-mode-section"
+import { AIAssistantSection } from "@/components/ai-assistant-section"
 import { Button } from "@/components/ui/button"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { Skeleton } from "@/components/ui/skeleton"
@@ -25,18 +27,21 @@ export function DashboardContent() {
   const [editTask, setEditTask] = useState<Task | null>(null)
   const [searchQuery, setSearchQuery] = useState("")
 
-  // 🔥 FINAL FILTER LOGIC (THIS FIXES EVERYTHING)
   const filteredTasks = tasks.filter((task) => {
-  const matchesSearch =
-    task.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    task.description.toLowerCase().includes(searchQuery.toLowerCase())
+    const matchesSearch =
+      task.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      task.description.toLowerCase().includes(searchQuery.toLowerCase())
 
-  if (activeTab === "Completed") {
-    return task.completed && matchesSearch
-  }
+    if (activeTab === "Completed") {
+      return task.completed && matchesSearch
+    }
 
-  return !task.completed && matchesSearch
-})
+    if (activeTab === "all") {
+      return !task.completed && matchesSearch
+    }
+
+    return !task.completed && task.category === activeTab && matchesSearch
+  })
 
   const handleAddOrUpdate = async (
     taskData: Omit<Task, "id" | "completed" | "createdAt">
@@ -61,6 +66,9 @@ export function DashboardContent() {
     setAddModalOpen(true)
   }
 
+  // Tabs that show the full-page custom UI (no task list / search bar)
+  const isSpecialTab = activeTab === "Analytics" || activeTab === "FocusMode" || activeTab === "AIAssistant"
+
   return (
     <div className="flex h-screen overflow-hidden bg-background">
       <DashboardSidebar activeTab={activeTab} onTabChange={setActiveTab} />
@@ -70,8 +78,16 @@ export function DashboardContent() {
 
         <ScrollArea className="flex-1">
           <main className="p-4 lg:p-6 max-w-6xl mx-auto w-full">
+
             {activeTab === "Analytics" ? (
               <AnalyticsSection tasks={tasks} />
+
+            ) : activeTab === "FocusMode" ? (
+              <FocusModeSection />
+
+            ) : activeTab === "AIAssistant" ? (
+              <AIAssistantSection />
+
             ) : (
               <div className="flex flex-col gap-6">
 
