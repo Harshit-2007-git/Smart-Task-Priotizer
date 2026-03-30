@@ -27,27 +27,16 @@ export function DashboardContent() {
 
   // 🔥 FINAL FILTER LOGIC (THIS FIXES EVERYTHING)
   const filteredTasks = tasks.filter((task) => {
-    const matchesSearch =
-      task.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      task.description.toLowerCase().includes(searchQuery.toLowerCase())
+  const matchesSearch =
+    task.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    task.description.toLowerCase().includes(searchQuery.toLowerCase())
 
-    // ✅ COMPLETED TAB
-    if (activeTab === "Completed") {
-      return task.completed && matchesSearch
-    }
+  if (activeTab === "Completed") {
+    return task.completed && matchesSearch
+  }
 
-    // ✅ CATEGORY TABS (only active tasks)
-    if (activeTab !== "all" && activeTab !== "Analytics") {
-      return (
-        !task.completed &&
-        task.category === activeTab &&
-        matchesSearch
-      )
-    }
-
-    // ✅ DEFAULT (dashboard)
-    return !task.completed && matchesSearch
-  })
+  return !task.completed && matchesSearch
+})
 
   const handleAddOrUpdate = async (
     taskData: Omit<Task, "id" | "completed" | "createdAt">
