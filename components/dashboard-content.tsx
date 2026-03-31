@@ -9,6 +9,8 @@ import { AddTaskModal } from "@/components/add-task-modal"
 import { CategorySummary } from "@/components/category-summary"
 import { AnalyticsSection } from "@/components/analytics-section"
 import { PersonalWorkspace } from "@/components/personal-workspace"
+import { FocusModeSection } from "@/components/focus-mode-section"
+import { AIAssistantSection } from "@/components/ai-assistant-section"
 import { Button } from "@/components/ui/button"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { Skeleton } from "@/components/ui/skeleton"
@@ -149,6 +151,10 @@ export function DashboardContent() {
               <AnalyticsSection tasks={tasks} focusScore={focusScore} />
             ) : activeTab === "PersonalWorkspace" ? (
               <PersonalWorkspace />
+            ) : activeTab === "FocusMode" ? (
+              <FocusModeSection />
+            ) : activeTab === "AIAssistant" ? (
+              <AIAssistantSection />
             ) : (
               <div className="flex flex-col gap-6">
                 {activeTab === "all" && <CategorySummary tasks={tasks} />}
