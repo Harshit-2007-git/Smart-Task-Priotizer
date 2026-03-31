@@ -8,7 +8,7 @@ export async function POST(request: Request) {
 
     if (!groqKey) {
       return NextResponse.json(
-        { error: "GROQ_API_KEY not set in environment variables" },
+        { error: "GROQ_API_KEY not set in Vercel environment variables" },
         { status: 500 }
       )
     }
@@ -20,7 +20,7 @@ export async function POST(request: Request) {
         Authorization: `Bearer ${groqKey}`,
       },
       body: JSON.stringify({
-        model: "llama3-8b-8192",
+        model: "llama-3.3-70b-versatile", // ✅ updated model — replaces decommissioned llama3-8b-8192
         messages: [
           { role: "system", content: systemPrompt },
           ...messages,
