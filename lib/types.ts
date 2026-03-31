@@ -1,4 +1,4 @@
-export type Priority = "High" | "Medium" | "Low"
+export type Priority = "High" | "Medium" | "Low" | "Daily"
 
 export type Category =
   | "Academic"
@@ -32,4 +32,10 @@ export const priorityColors: Record<Priority, string> = {
   High: "bg-red-500/15 text-red-700 dark:text-red-400 border-red-500/25",
   Medium: "bg-amber-500/15 text-amber-700 dark:text-amber-400 border-amber-500/25",
   Low: "bg-emerald-500/15 text-emerald-700 dark:text-emerald-400 border-emerald-500/25",
+  Daily: "bg-sky-500/15 text-sky-700 dark:text-sky-400 border-sky-500/25",
+}
+
+// Returns true if this task should affect the focus score
+export function affectsFocusScore(task: Task): boolean {
+  return task.category !== "Personal" && task.priority !== "Daily"
 }
