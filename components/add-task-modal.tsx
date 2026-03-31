@@ -63,10 +63,10 @@ export function AddTaskModal({ open, onOpenChange, onSubmit, editTask }: AddTask
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    if (!title || !deadline) return
+    if (!title || (priority !== "Daily" && !deadline)) return
     setIsLoading(true)
     try {
-      await onSubmit({ title, description, category, priority, deadline: format(deadline, "yyyy-MM-dd") })
+      await onSubmit({ title, description, category, priority, deadline: priority === "Daily" ? "" : format(deadline!, "yyyy-MM-dd") })
       onOpenChange(false)
     } finally {
       setIsLoading(false)
@@ -139,6 +139,7 @@ export function AddTaskModal({ open, onOpenChange, onSubmit, editTask }: AddTask
               : "This task will contribute to your focus score when completed."}
           </p>
 
+          {priority !== "Daily" && (
           <div className="flex flex-col gap-2">
             <Label>Deadline</Label>
             <Popover>
@@ -157,12 +158,13 @@ export function AddTaskModal({ open, onOpenChange, onSubmit, editTask }: AddTask
               </PopoverContent>
             </Popover>
           </div>
+          )}
 
           <DialogFooter>
             <Button type="button" variant="outline" onClick={() => onOpenChange(false)} disabled={isLoading}>
               Cancel
             </Button>
-            <Button type="submit" disabled={isLoading || !title || !deadline}>
+            <Button type="submit" disabled={isLoading || !title || (priority !== "Daily" && !deadline)}>
               {isLoading && <Loader2 className="mr-2 size-4 animate-spin" />}
               {editTask ? "Update Task" : "Add Task"}
             </Button>
