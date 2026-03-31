@@ -51,7 +51,7 @@ export function AddTaskModal({ open, onOpenChange, onSubmit, editTask }: AddTask
       setDescription(editTask.description)
       setCategory(editTask.category)
       setPriority(editTask.priority)
-      setDeadline(new Date(editTask.deadline))
+      setDeadline(editTask.deadline ? new Date(editTask.deadline) : undefined)
     } else {
       setTitle("")
       setDescription("")
@@ -66,7 +66,7 @@ export function AddTaskModal({ open, onOpenChange, onSubmit, editTask }: AddTask
     if (!title || (priority !== "Daily" && !deadline)) return
     setIsLoading(true)
     try {
-      await onSubmit({ title, description, category, priority, deadline: priority === "Daily" ? "" : format(deadline!, "yyyy-MM-dd") })
+      await onSubmit({ title, description, category, priority, deadline: priority === "Daily" ? null : format(deadline!, "yyyy-MM-dd") })
       onOpenChange(false)
     } finally {
       setIsLoading(false)
