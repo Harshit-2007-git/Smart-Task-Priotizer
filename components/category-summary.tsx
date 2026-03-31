@@ -1,6 +1,6 @@
 "use client"
 
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { Card, CardContent } from "@/components/ui/card"
 import type { Task, Category } from "@/lib/types"
 import { categoryColors } from "@/lib/types"
 import { cn } from "@/lib/utils"
@@ -39,25 +39,21 @@ export function CategorySummary({ tasks }: CategorySummaryProps) {
   return (
     <div className="grid grid-cols-2 lg:grid-cols-3 gap-3">
       {categories.map((cat) => {
-        const count = tasks.filter((t) => t.category === cat).length
+        // "Completed" counts tasks where completed=true (any category)
+        // Others count active (non-completed) tasks in that category
+        const count =
+          cat === "Completed"
+            ? tasks.filter((t) => t.completed).length
+            : tasks.filter((t) => t.category === cat && !t.completed).length
+
         const colors = categoryColors[cat]
         const Icon = categoryIcons[cat]
 
         return (
-          <Card
-            key={cat}
-            className={cn(
-              "border overflow-hidden transition-all hover:shadow-sm"
-            )}
-          >
+          <Card key={cat} className="border overflow-hidden transition-all hover:shadow-sm">
             <CardContent className="p-4">
               <div className="flex items-center gap-3">
-                <div
-                  className={cn(
-                    "flex size-10 shrink-0 items-center justify-center rounded-lg",
-                    colors.bg
-                  )}
-                >
+                <div className={cn("flex size-10 shrink-0 items-center justify-center rounded-lg", colors.bg)}>
                   <Icon className={cn("size-5", colors.text)} />
                 </div>
                 <div>
