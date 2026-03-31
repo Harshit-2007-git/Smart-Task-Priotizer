@@ -12,7 +12,6 @@ import { PersonalWorkspace } from "@/components/personal-workspace"
 import { FocusModeSection } from "@/components/focus-mode-section"
 import { AIAssistantSection } from "@/components/ai-assistant-section"
 import { Button } from "@/components/ui/button"
-import { ScrollArea } from "@/components/ui/scroll-area"
 import { Skeleton } from "@/components/ui/skeleton"
 import { Plus, Search, Timer, Pause } from "lucide-react"
 import { Input } from "@/components/ui/input"
@@ -145,7 +144,7 @@ export function DashboardContent() {
           </div>
         )}
 
-        <ScrollArea className="flex-1">
+        <div className="flex-1 overflow-y-auto">
           <main className="p-4 lg:p-6 max-w-6xl mx-auto w-full">
             {activeTab === "Analytics" ? (
               <AnalyticsSection tasks={tasks} focusScore={focusScore} />
@@ -211,7 +210,7 @@ export function DashboardContent() {
               </div>
             )}
           </main>
-        </ScrollArea>
+        </div>
       </div>
 
       <AddTaskModal
