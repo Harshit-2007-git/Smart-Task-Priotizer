@@ -10,16 +10,18 @@ export async function PATCH(
     process.env.SUPABASE_SERVICE_ROLE_KEY!
   )
 
-  const { completed } = await request.json()
+  const body = await request.json()
 
+  // ✅ Accept any fields sent — not just completed
+  // This fixes updateTask (edit) AND toggleComplete both working correctly
   const { data, error } = await supabase
     .from("tasks")
-    .update({ completed }) // ✅ ONLY THIS
+    .update(body)
     .eq("id", params.id)
     .select()
 
   if (error) {
-    console.error(error)
+    console.error("Supabase PATCH error:", error)
     return NextResponse.json({ error }, { status: 400 })
   }
 
