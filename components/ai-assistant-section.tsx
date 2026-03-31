@@ -1,11 +1,10 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useRef, useEffect } from "react"
 import { useTasks } from "@/lib/task-context"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
-import { ScrollArea } from "@/components/ui/scroll-area"
 import { cn } from "@/lib/utils"
 import { Bot, Send, Sparkles, Loader2, User, Lightbulb, ListOrdered, RefreshCw } from "lucide-react"
 import { priorityColors } from "@/lib/types"
@@ -46,6 +45,12 @@ export function AIAssistantSection() {
   const [input, setInput] = useState("")
   const [isLoading, setIsLoading] = useState(false)
 
+  // ✅ Auto-scroll to bottom when new messages arrive
+  const messagesEndRef = useRef<HTMLDivElement>(null)
+  useEffect(() => {
+    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" })
+  }, [messages, isLoading])
+
   const sendMessage = async (text: string) => {
     if (!text.trim() || isLoading) return
 
@@ -70,7 +75,6 @@ Your job is to:
 
 Always reference the actual task names when giving advice.`
 
-      // ✅ FIX: call our own Next.js API route — key stays on server
       const response = await fetch("/api/ai", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -95,7 +99,7 @@ Always reference the actual task names when giving advice.`
         ...prev,
         {
           role: "assistant",
-          content: `⚠️ ${err.message ?? "Something went wrong"}. Make sure GROQ_API_KEY is set in your Vercel environment variables (without NEXT_PUBLIC_ prefix).`,
+          content: `⚠️ ${err.message ?? "Something went wrong"}. Make sure GROQ_API_KEY is set in Vercel → Settings → Environment Variables.`,
         },
       ])
     } finally {
@@ -111,10 +115,10 @@ Always reference the actual task names when giving advice.`
   })
 
   return (
-    <div className="flex flex-col lg:flex-row gap-6" style={{ height: "calc(100vh - 120px)" }}>
+    <div className="flex flex-col lg:flex-row gap-6" style={{ height: "calc(100vh - 130px)" }}>
 
       {/* Left Panel */}
-      <div className="lg:w-72 flex flex-col gap-4 shrink-0">
+      <div className="lg:w-72 flex flex-col gap-4 shrink-0 overflow-y-auto">
 
         <div className="grid grid-cols-2 gap-3">
           <Card className="bg-blue-500/5 border-blue-500/20">
@@ -159,30 +163,28 @@ Always reference the actual task names when giving advice.`
         </Card>
 
         {activeTasks.length > 0 && (
-          <Card className="flex-1 overflow-hidden">
+          <Card>
             <CardHeader className="pb-2 pt-3 px-3">
               <CardTitle className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Your Tasks</CardTitle>
             </CardHeader>
             <CardContent className="px-3 pb-3">
-              <ScrollArea className="h-40">
-                <div className="flex flex-col gap-1.5">
-                  {activeTasks.slice(0, 10).map((task) => (
-                    <div key={task.id} className="flex items-center justify-between gap-2 py-1 border-b border-border/50 last:border-0">
-                      <span className="text-xs text-foreground truncate">{task.title}</span>
-                      <Badge variant="outline" className={cn("text-[10px] px-1.5 py-0 shrink-0", priorityColors[task.priority])}>
-                        {task.priority}
-                      </Badge>
-                    </div>
-                  ))}
-                </div>
-              </ScrollArea>
+              <div className="flex flex-col gap-1.5 max-h-48 overflow-y-auto">
+                {activeTasks.map((task) => (
+                  <div key={task.id} className="flex items-center justify-between gap-2 py-1 border-b border-border/50 last:border-0">
+                    <span className="text-xs text-foreground truncate">{task.title}</span>
+                    <Badge variant="outline" className={cn("text-[10px] px-1.5 py-0 shrink-0", priorityColors[task.priority])}>
+                      {task.priority}
+                    </Badge>
+                  </div>
+                ))}
+              </div>
             </CardContent>
           </Card>
         )}
       </div>
 
-      {/* Right Panel: Chat */}
-      <Card className="flex-1 flex flex-col overflow-hidden">
+      {/* Right Panel: Chat — ✅ fixed height with real overflow scroll */}
+      <Card className="flex-1 flex flex-col min-h-0">
         <CardHeader className="pb-3 border-b border-border shrink-0">
           <div className="flex items-center gap-3">
             <div className="size-9 rounded-full bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center">
@@ -190,7 +192,7 @@ Always reference the actual task names when giving advice.`
             </div>
             <div>
               <CardTitle className="text-sm font-semibold">AI Study Assistant</CardTitle>
-              <p className="text-xs text-muted-foreground">Powered by Groq (Llama 3) · Free</p>
+              <p className="text-xs text-muted-foreground">Powered by Groq (Llama 3.3) · Free</p>
             </div>
             <div className="ml-auto flex items-center gap-1.5">
               <div className="size-2 rounded-full bg-emerald-400 animate-pulse" />
@@ -199,13 +201,14 @@ Always reference the actual task names when giving advice.`
           </div>
         </CardHeader>
 
-        <ScrollArea className="flex-1 p-4">
+        {/* ✅ THIS IS THE KEY FIX: flex-1 + overflow-y-auto + min-h-0 makes it scroll */}
+        <div className="flex-1 overflow-y-auto min-h-0 p-4">
           <div className="flex flex-col gap-4">
             {messages.map((msg, i) => (
               <div
                 key={i}
                 className={cn(
-                  "flex gap-3 animate-in fade-in slide-in-from-bottom-2 duration-300",
+                  "flex gap-3",
                   msg.role === "user" ? "flex-row-reverse" : "flex-row"
                 )}
               >
@@ -240,8 +243,11 @@ Always reference the actual task names when giving advice.`
                 </div>
               </div>
             )}
+
+            {/* Auto-scroll anchor */}
+            <div ref={messagesEndRef} />
           </div>
-        </ScrollArea>
+        </div>
 
         <div className="p-4 border-t border-border shrink-0">
           <div className="flex gap-2">
