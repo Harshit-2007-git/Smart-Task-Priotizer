@@ -52,7 +52,7 @@ const CONFETTI_COLORS = ["#2563eb", "#06b6d4", "#a855f7", "#10b981", "#f59e0b", 
 
 export function FocusModeSection() {
   const { tasks, toggleComplete } = useTasks()
-  const activeTasks = tasks.filter((t) => !t.completed)
+  const activeTasks = tasks.filter((t) => !t.completed && t.priority !== "Daily")
 
   const [selectedTask, setSelectedTask] = useState<Task | null>(null)
   const [timerOption, setTimerOption] = useState(TIMER_OPTIONS[0])
