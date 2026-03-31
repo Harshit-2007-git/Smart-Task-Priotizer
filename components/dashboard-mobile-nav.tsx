@@ -4,7 +4,7 @@ import { cn } from "@/lib/utils"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import {
   Zap, LayoutDashboard, BookOpen, FileText, Code2,
-  BookMarked, Target, CheckCircle2, BarChart3, Heart,
+  BookMarked, Target, CheckCircle2, BarChart3, Heart, Timer, Bot,
 } from "lucide-react"
 
 const sidebarLinks = [
@@ -17,6 +17,8 @@ const sidebarLinks = [
   { label: "Completed", tab: "Completed", icon: CheckCircle2, dot: "bg-gray-500" },
   { label: "Analytics", tab: "Analytics", icon: BarChart3 },
   { label: "Personal Workspace", tab: "PersonalWorkspace", icon: Heart, dot: "bg-pink-500" },
+  { label: "Focus Mode", tab: "FocusMode", icon: Timer, dot: "bg-amber-500" },
+  { label: "AI Chatbot", tab: "AIAssistant", icon: Bot, dot: "bg-violet-500" },
 ]
 
 interface DashboardMobileNavProps {
