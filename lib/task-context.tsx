@@ -27,7 +27,6 @@ export function TaskProvider({ children }: { children: ReactNode }) {
   const [tasks, setTasks] = useState<Task[]>([])
   const [isLoading, setIsLoading] = useState(true)
 
-  // 🔥 GLOBAL fetchTasks (FIXED)
   const fetchTasks = useCallback(async () => {
     try {
       const res = await fetch("/api/tasks")
@@ -46,14 +45,11 @@ export function TaskProvider({ children }: { children: ReactNode }) {
 
   const addTask = useCallback(async (task: Omit<Task, "id" | "completed" | "createdAt">) => {
     try {
-      const res = await fetch("/api/tasks", {
+      await fetch("/api/tasks", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(task),
       })
-      const data = await res.json()
-
-      // 🔥 Refresh instead of manual update
       await fetchTasks()
     } catch (error) {
       console.error("Failed to add task:", error)
@@ -63,11 +59,10 @@ export function TaskProvider({ children }: { children: ReactNode }) {
   const updateTask = useCallback(async (id: string, updates: Partial<Task>) => {
     try {
       await fetch(`/api/tasks/${id}`, {
-        method: "PATCH", // 🔥 FIXED (was PUT)
+        method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(updates),
       })
-
       await fetchTasks()
     } catch (error) {
       console.error("Failed to update task:", error)
@@ -84,28 +79,32 @@ export function TaskProvider({ children }: { children: ReactNode }) {
   }, [])
 
   const toggleComplete = useCallback(async (id: string) => {
-  const task = tasks.find((t) => t.id === id)
-  if (!task) return
+    const task = tasks.find((t) => t.id === id)
+    if (!task) return
 
-  const res = await fetch(`/api/tasks/${id}`, {
-    method: "PATCH",
-    headers: {
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({
-      completed: !task.completed,
-    }),
-  })
+    const newCompleted = !task.completed
 
-  if (!res.ok) {
-    console.error("PATCH failed")
-    return
-  }
+    // ✅ OPTIMISTIC UPDATE — update UI instantly
+    // Task immediately moves to/from Completed tab without waiting for API
+    setTasks((prev) =>
+      prev.map((t) => (t.id === id ? { ...t, completed: newCompleted } : t))
+    )
 
-  const updated = await fetch("/api/tasks")
-  const data = await updated.json()
-  setTasks(data.tasks || [])
-}, [tasks])
+    // Sync with Supabase in background
+    const res = await fetch(`/api/tasks/${id}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ completed: newCompleted }),
+    })
+
+    if (!res.ok) {
+      // Revert if API call failed
+      console.error("PATCH failed — reverting")
+      setTasks((prev) =>
+        prev.map((t) => (t.id === id ? { ...t, completed: !newCompleted } : t))
+      )
+    }
+  }, [tasks])
 
   const getTasksByCategory = useCallback(
     (category: Category) => tasks.filter((t) => t.category === category),
