@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { cn } from "@/lib/utils"
-import { Play, Pause, Square, Timer, Trophy, Flame, CheckCircle2 } from "lucide-react"
+import { Play, Pause, Square, Timer, CheckCircle2 } from "lucide-react"
 import type { Task } from "@/lib/types"
 
 const TIMER_OPTIONS = [
@@ -27,6 +27,27 @@ const PRIORITY_COLORS: Record<string, string> = {
   Low: "text-emerald-400",
 }
 
+// ✅ Rank system
+const RANKS = [
+  { min: 0,   max: 29,  label: "Beginner",  emoji: "🪨", color: "text-stone-400",  bg: "bg-stone-500/10 border-stone-500/30",   glow: "" },
+  { min: 30,  max: 59,  label: "Bronze",    emoji: "🥉", color: "text-orange-400", bg: "bg-orange-500/10 border-orange-500/30",  glow: "shadow-orange-500/20" },
+  { min: 60,  max: 99,  label: "Silver",    emoji: "🥈", color: "text-slate-300",  bg: "bg-slate-400/10 border-slate-400/30",   glow: "shadow-slate-400/20" },
+  { min: 100, max: 149, label: "Gold",      emoji: "🥇", color: "text-yellow-400", bg: "bg-yellow-500/10 border-yellow-500/30", glow: "shadow-yellow-500/20" },
+  { min: 150, max: 249, label: "Platinum",  emoji: "💎", color: "text-cyan-300",   bg: "bg-cyan-500/10 border-cyan-400/30",     glow: "shadow-cyan-400/20" },
+  { min: 250, max: 399, label: "Diamond",   emoji: "💠", color: "text-blue-300",   bg: "bg-blue-500/10 border-blue-400/30",     glow: "shadow-blue-400/20" },
+  { min: 400, max: 599, label: "Master",    emoji: "🔮", color: "text-purple-400", bg: "bg-purple-500/10 border-purple-500/30", glow: "shadow-purple-500/20" },
+  { min: 600, max: Infinity, label: "Legend", emoji: "👑", color: "text-pink-400", bg: "bg-pink-500/10 border-pink-500/30",     glow: "shadow-pink-500/20" },
+]
+
+function getRank(score: number) {
+  return RANKS.find((r) => score >= r.min && score <= r.max) ?? RANKS[0]
+}
+
+function getNextRank(score: number) {
+  const idx = RANKS.findIndex((r) => score >= r.min && score <= r.max)
+  return idx < RANKS.length - 1 ? RANKS[idx + 1] : null
+}
+
 const CONFETTI_COLORS = ["#2563eb", "#06b6d4", "#a855f7", "#10b981", "#f59e0b", "#ef4444"]
 
 export function FocusModeSection() {
@@ -38,22 +59,39 @@ export function FocusModeSection() {
   const [timeLeft, setTimeLeft] = useState(TIMER_OPTIONS[0].seconds)
   const [isRunning, setIsRunning] = useState(false)
   const [isPaused, setIsPaused] = useState(false)
-  const [focusScore, setFocusScore] = useState(0)
+  // ✅ Start at 50
+  const [focusScore, setFocusScore] = useState(50)
   const [sessionComplete, setSessionComplete] = useState(false)
   const [minutesFocused, setMinutesFocused] = useState(0)
   const [confettiPieces, setConfettiPieces] = useState<{ x: number; y: number; color: string; delay: number }[]>([])
+  const [scoreFlash, setScoreFlash] = useState<"up" | "down" | null>(null)
 
   const intervalRef = useRef<NodeJS.Timeout | null>(null)
   const scoreIntervalRef = useRef<NodeJS.Timeout | null>(null)
   const secondsElapsedRef = useRef(0)
 
-  // Load focus score from localStorage
+  // Load focus score — default 50 if never set
   useEffect(() => {
     const stored = localStorage.getItem("focusScore")
-    if (stored) setFocusScore(parseInt(stored))
+    if (stored !== null) {
+      setFocusScore(parseInt(stored))
+    } else {
+      localStorage.setItem("focusScore", "50")
+      setFocusScore(50)
+    }
   }, [])
 
-  // Main countdown
+  const updateScore = (delta: number) => {
+    setFocusScore((prev) => {
+      const next = Math.max(0, prev + delta)
+      localStorage.setItem("focusScore", String(next))
+      setScoreFlash(delta > 0 ? "up" : "down")
+      setTimeout(() => setScoreFlash(null), 800)
+      return next
+    })
+  }
+
+  // Countdown
   useEffect(() => {
     if (isRunning && !isPaused) {
       intervalRef.current = setInterval(() => {
@@ -73,16 +111,12 @@ export function FocusModeSection() {
     return () => { if (intervalRef.current) clearInterval(intervalRef.current) }
   }, [isRunning, isPaused])
 
-  // Score ticker — +points every 5 min of focus
+  // Score ticker every 5 min
   useEffect(() => {
     if (isRunning && !isPaused && selectedTask) {
       scoreIntervalRef.current = setInterval(() => {
         const pts = PRIORITY_POINTS[selectedTask.priority] ?? 1
-        setFocusScore((prev) => {
-          const next = prev + pts
-          localStorage.setItem("focusScore", String(next))
-          return next
-        })
+        updateScore(pts)
       }, 5 * 60 * 1000)
     } else {
       if (scoreIntervalRef.current) clearInterval(scoreIntervalRef.current)
@@ -96,7 +130,6 @@ export function FocusModeSection() {
     const mins = Math.floor(secondsElapsedRef.current / 60)
     setMinutesFocused(mins)
     setSessionComplete(true)
-    // Generate confetti
     setConfettiPieces(
       Array.from({ length: 60 }, (_, i) => ({
         x: Math.random() * 100,
@@ -105,10 +138,7 @@ export function FocusModeSection() {
         delay: Math.random() * 1.5,
       }))
     )
-    // Mark task complete
-    if (selectedTask) {
-      toggleComplete(selectedTask.id)
-    }
+    if (selectedTask) toggleComplete(selectedTask.id)
     setTimeout(() => setConfettiPieces([]), 4000)
   }
 
@@ -122,12 +152,7 @@ export function FocusModeSection() {
 
   const handlePause = () => {
     setIsPaused(true)
-    // Deduct 2 pts for pausing
-    setFocusScore((prev) => {
-      const next = Math.max(0, prev - 2)
-      localStorage.setItem("focusScore", String(next))
-      return next
-    })
+    updateScore(-2)
   }
 
   const handleResume = () => setIsPaused(false)
@@ -157,13 +182,14 @@ export function FocusModeSection() {
   const circumference = 2 * Math.PI * radius
   const strokeDashoffset = circumference * (1 - progress)
 
-  return (
-    <div className="relative min-h-[80vh] flex flex-col items-center justify-start gap-8 py-8 overflow-hidden">
+  const rank = getRank(focusScore)
+  const nextRank = getNextRank(focusScore)
+  const progressToNext = nextRank
+    ? ((focusScore - rank.min) / (nextRank.min - rank.min)) * 100
+    : 100
 
-      {/* Ambient background glow */}
-      <div className="pointer-events-none absolute inset-0">
-        <div className="absolute top-1/3 left-1/2 -translate-x-1/2 w-[500px] h-[500px] bg-blue-600/10 rounded-full blur-[100px]" />
-      </div>
+  return (
+    <div className="relative flex flex-col gap-6 py-4">
 
       {/* Confetti */}
       {confettiPieces.map((p, i) => (
@@ -180,44 +206,94 @@ export function FocusModeSection() {
         />
       ))}
 
-      {/* Header */}
-      <div className="text-center z-10">
-        <div className="flex items-center justify-center gap-2 mb-2">
-          <Timer className="size-5 text-blue-400" />
-          <h2 className="text-2xl font-bold text-foreground">Focus Mode</h2>
+      {/* ✅ RANK BANNER — top of page */}
+      <div className={cn(
+        "flex items-center justify-between gap-4 rounded-2xl border p-4 shadow-lg",
+        rank.bg, rank.glow && `shadow-lg ${rank.glow}`
+      )}>
+        <div className="flex items-center gap-4">
+          <span className="text-4xl">{rank.emoji}</span>
+          <div>
+            <p className="text-xs text-muted-foreground uppercase tracking-widest font-medium">Current Rank</p>
+            <p className={cn("text-2xl font-bold", rank.color)}>{rank.label}</p>
+            {nextRank && (
+              <p className="text-xs text-muted-foreground mt-0.5">
+                {nextRank.min - focusScore} pts to {nextRank.emoji} {nextRank.label}
+              </p>
+            )}
+            {!nextRank && (
+              <p className="text-xs text-yellow-400 mt-0.5 font-medium">Maximum rank achieved! 👑</p>
+            )}
+          </div>
         </div>
-        <p className="text-sm text-muted-foreground">Select a task, set your timer, and get into the zone.</p>
+
+        {/* Score + progress */}
+        <div className="flex flex-col items-end gap-2">
+          <div className="flex items-center gap-2">
+            <span className="text-xs text-muted-foreground">Focus Score</span>
+            <span className={cn(
+              "text-3xl font-bold tabular-nums transition-all duration-300",
+              rank.color,
+              scoreFlash === "up" && "scale-125 text-emerald-400",
+              scoreFlash === "down" && "scale-125 text-red-400",
+            )}>
+              {focusScore}
+            </span>
+          </div>
+          {nextRank && (
+            <div className="w-40">
+              <div className="flex justify-between text-[10px] text-muted-foreground mb-1">
+                <span>{rank.label}</span>
+                <span>{nextRank.label}</span>
+              </div>
+              <div className="h-2 rounded-full bg-muted overflow-hidden">
+                <div
+                  className={cn("h-full rounded-full transition-all duration-500", rank.color.replace("text-", "bg-"))}
+                  style={{ width: `${progressToNext}%` }}
+                />
+              </div>
+            </div>
+          )}
+        </div>
       </div>
 
-      {/* Focus Score Banner */}
-      <div className="flex items-center gap-3 bg-blue-500/10 border border-blue-500/20 rounded-full px-6 py-2 z-10">
-        <Flame className="size-4 text-orange-400" />
-        <span className="text-sm font-medium text-foreground">Focus Score:</span>
-        <span className="text-lg font-bold text-blue-400">{focusScore}</span>
-        <Trophy className="size-4 text-yellow-400" />
+      {/* All Ranks Reference */}
+      <div className="grid grid-cols-4 sm:grid-cols-8 gap-2">
+        {RANKS.map((r) => (
+          <div
+            key={r.label}
+            className={cn(
+              "flex flex-col items-center gap-1 rounded-xl border p-2 text-center transition-all",
+              focusScore >= r.min
+                ? cn(r.bg, "opacity-100")
+                : "opacity-30 border-border bg-muted/20"
+            )}
+          >
+            <span className="text-xl">{r.emoji}</span>
+            <span className={cn("text-[10px] font-semibold", focusScore >= r.min ? r.color : "text-muted-foreground")}>
+              {r.label}
+            </span>
+            <span className="text-[9px] text-muted-foreground">{r.min}+</span>
+          </div>
+        ))}
       </div>
 
-      {/* Session Complete Card */}
+      {/* Session complete card */}
       {sessionComplete && (
-        <Card className="w-full max-w-md border-emerald-500/30 bg-emerald-500/5 z-10 animate-in fade-in slide-in-from-bottom-4 duration-500">
+        <Card className="border-emerald-500/30 bg-emerald-500/5 animate-in fade-in slide-in-from-bottom-4 duration-500">
           <CardContent className="p-6 text-center">
             <CheckCircle2 className="size-12 text-emerald-400 mx-auto mb-3" />
             <h3 className="text-xl font-bold text-foreground mb-1">Session Complete! 🎉</h3>
             <p className="text-muted-foreground text-sm">
               You focused for <span className="font-semibold text-foreground">{minutesFocused} minutes</span>
-              {selectedTask && (
-                <> on <span className="font-semibold text-blue-400">{selectedTask.title}</span></>
-              )}
+              {selectedTask && <> on <span className="font-semibold text-blue-400">{selectedTask.title}</span></>}
             </p>
             <p className="text-xs text-emerald-400 mt-2 font-medium">Task marked as complete ✓</p>
-            <Button
-              className="mt-4 w-full"
-              onClick={() => {
-                setSessionComplete(false)
-                setSelectedTask(null)
-                setTimeLeft(timerOption.seconds)
-              }}
-            >
+            <Button className="mt-4 w-full" onClick={() => {
+              setSessionComplete(false)
+              setSelectedTask(null)
+              setTimeLeft(timerOption.seconds)
+            }}>
               Start Another Session
             </Button>
           </CardContent>
@@ -225,14 +301,14 @@ export function FocusModeSection() {
       )}
 
       {!sessionComplete && (
-        <div className="flex flex-col lg:flex-row gap-8 w-full max-w-4xl z-10">
+        <div className="flex flex-col lg:flex-row gap-8">
 
-          {/* Left: Task Selector */}
+          {/* Left: Task selector */}
           <div className="flex-1 flex flex-col gap-3">
             <h3 className="text-sm font-semibold text-foreground">Select Task to Focus On</h3>
-            <div className="flex flex-col gap-2 max-h-[400px] overflow-y-auto pr-1">
+            <div className="flex flex-col gap-2 max-h-72 overflow-y-auto pr-1">
               {activeTasks.length === 0 ? (
-                <p className="text-sm text-muted-foreground py-4 text-center">No active tasks. Add some tasks first!</p>
+                <p className="text-sm text-muted-foreground py-4 text-center">No active tasks!</p>
               ) : (
                 activeTasks.map((task) => (
                   <button
@@ -256,22 +332,21 @@ export function FocusModeSection() {
                     {task.description && (
                       <p className="text-xs text-muted-foreground mt-0.5 line-clamp-1">{task.description}</p>
                     )}
-                    <div className="flex items-center gap-2 mt-1.5">
-                      <Badge variant="outline" className="text-[10px] px-1.5 py-0">{task.category}</Badge>
-                    </div>
+                    <Badge variant="outline" className="text-[10px] px-1.5 py-0 mt-1.5">{task.category}</Badge>
                   </button>
                 ))
               )}
             </div>
 
-            {/* Scoring Info */}
-            <div className="rounded-lg border border-border bg-card p-3 mt-2">
-              <p className="text-xs font-semibold text-foreground mb-2">How Focus Score Works</p>
+            {/* Scoring rules */}
+            <div className="rounded-lg border border-border bg-card p-3">
+              <p className="text-xs font-semibold text-foreground mb-2">Focus Score Rules</p>
               <div className="flex flex-col gap-1">
-                <p className="text-xs text-muted-foreground">🔴 High priority task → <span className="text-foreground font-medium">+5 pts</span> every 5 min</p>
-                <p className="text-xs text-muted-foreground">🟡 Medium priority task → <span className="text-foreground font-medium">+3 pts</span> every 5 min</p>
-                <p className="text-xs text-muted-foreground">🟢 Low priority task → <span className="text-foreground font-medium">+1 pt</span> every 5 min</p>
-                <p className="text-xs text-muted-foreground">⏸ Pausing session → <span className="text-red-400 font-medium">-2 pts</span></p>
+                <p className="text-xs text-muted-foreground">🔴 High priority → <span className="text-foreground font-medium">+5 pts</span> every 5 min</p>
+                <p className="text-xs text-muted-foreground">🟡 Medium priority → <span className="text-foreground font-medium">+3 pts</span> every 5 min</p>
+                <p className="text-xs text-muted-foreground">🟢 Low priority → <span className="text-foreground font-medium">+1 pt</span> every 5 min</p>
+                <p className="text-xs text-muted-foreground">⏸ Pausing → <span className="text-red-400 font-medium">-2 pts</span></p>
+                <p className="text-xs text-muted-foreground">⭐ Everyone starts at <span className="text-yellow-400 font-medium">50 pts (Bronze)</span></p>
               </div>
             </div>
           </div>
@@ -279,7 +354,7 @@ export function FocusModeSection() {
           {/* Right: Timer */}
           <div className="flex flex-col items-center gap-6">
 
-            {/* Timer Option Selector */}
+            {/* Timer options */}
             <div className="flex gap-2">
               {TIMER_OPTIONS.map((opt) => (
                 <button
@@ -299,23 +374,15 @@ export function FocusModeSection() {
               ))}
             </div>
 
-            {/* Circular Timer */}
+            {/* Circular timer */}
             <div className="relative flex items-center justify-center">
-              {/* Outer glow ring when running */}
               {isRunning && !isPaused && (
                 <div className="absolute w-[260px] h-[260px] rounded-full bg-blue-500/10 animate-pulse" />
               )}
               <svg width="260" height="260" viewBox="0 0 260 260" className="transform -rotate-90">
-                {/* Track */}
                 <circle cx="130" cy="130" r={radius} strokeWidth="10" fill="none" className="stroke-muted" />
-                {/* Progress */}
                 <circle
-                  cx="130"
-                  cy="130"
-                  r={radius}
-                  strokeWidth="10"
-                  fill="none"
-                  strokeLinecap="round"
+                  cx="130" cy="130" r={radius} strokeWidth="10" fill="none" strokeLinecap="round"
                   stroke={isPaused ? "#f59e0b" : "#2563eb"}
                   style={{
                     strokeDasharray: circumference,
@@ -329,7 +396,7 @@ export function FocusModeSection() {
                   {formatTime(timeLeft)}
                 </span>
                 <span className="text-xs text-muted-foreground mt-1">
-                  {isPaused ? "Paused" : isRunning ? "Focusing..." : "Ready"}
+                  {isPaused ? "Paused ⏸" : isRunning ? "Focusing... 🔥" : "Ready"}
                 </span>
                 {selectedTask && (
                   <span className="text-xs text-blue-400 font-medium mt-1 max-w-[140px] text-center truncate">
@@ -371,7 +438,6 @@ export function FocusModeSection() {
                 </>
               )}
             </div>
-
             {!selectedTask && !isRunning && (
               <p className="text-xs text-muted-foreground animate-pulse">← Select a task to begin</p>
             )}
