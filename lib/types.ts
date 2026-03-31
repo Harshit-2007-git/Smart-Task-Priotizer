@@ -14,7 +14,7 @@ export interface Task {
   description: string
   category: Category
   priority: Priority
-  deadline: string
+  deadline: string | null
   completed: boolean
   createdAt: string
 }
