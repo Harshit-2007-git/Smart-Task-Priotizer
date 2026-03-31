@@ -6,7 +6,6 @@ import {
   useState,
   useCallback,
   useEffect,
-  useRef,
   type ReactNode,
 } from "react"
 import type { Task, Category, Priority } from "./types"
@@ -14,6 +13,7 @@ import type { Task, Category, Priority } from "./types"
 interface TaskContextType {
   tasks: Task[]
   isLoading: boolean
+  focusScore: number
   addTask: (task: Omit<Task, "id" | "completed" | "createdAt">) => Promise<void>
   updateTask: (id: string, updates: Partial<Task>) => Promise<void>
   deleteTask: (id: string) => Promise<void>
@@ -24,22 +24,39 @@ interface TaskContextType {
 
 const TaskContext = createContext<TaskContextType | undefined>(undefined)
 
+function loadFocusScore(): number {
+  if (typeof window === "undefined") return 0
+  const stored = localStorage.getItem("focusScore")
+  return stored ? parseInt(stored, 10) : 0
+}
+
+function saveFocusScore(score: number) {
+  if (typeof window !== "undefined") {
+    localStorage.setItem("focusScore", String(score))
+  }
+}
+
 export function TaskProvider({ children }: { children: ReactNode }) {
   const [tasks, setTasks] = useState<Task[]>([])
   const [isLoading, setIsLoading] = useState(true)
-
-  // Keep a ref to tasks so toggleComplete can read current value
-  // without needing tasks in its dependency array
-  const tasksRef = useRef<Task[]>([])
-  useEffect(() => {
-    tasksRef.current = tasks
-  }, [tasks])
+  const [focusScore, setFocusScore] = useState(0)
 
   const fetchTasks = useCallback(async () => {
     try {
       const res = await fetch("/api/tasks")
       const data = await res.json()
-      setTasks(data.tasks || [])
+      const fetched: Task[] = data.tasks || []
+      setTasks(fetched)
+
+      // Seed focus score from DB on first load, take max of stored vs DB-derived
+      const scorableDone = fetched.filter(
+        (t) => t.completed && t.category !== "Personal" && t.priority !== "Daily"
+      )
+      const scoreFromDB = scorableDone.length * 10
+      const stored = loadFocusScore()
+      const best = Math.max(stored, scoreFromDB)
+      setFocusScore(best)
+      saveFocusScore(best)
     } catch (error) {
       console.error("Failed to fetch tasks:", error)
     } finally {
@@ -87,39 +104,48 @@ export function TaskProvider({ children }: { children: ReactNode }) {
   }, [])
 
   const toggleComplete = useCallback(async (id: string) => {
-    // ✅ Read current value from ref — no stale closure problem
-    const task = tasksRef.current.find((t) => t.id === id)
+    const task = tasks.find((t) => t.id === id)
     if (!task) return
 
     const newCompleted = !task.completed
 
-    // ✅ Optimistic update — flip immediately in UI
+    // 1. Optimistic update immediately
     setTasks((prev) =>
       prev.map((t) => (t.id === id ? { ...t, completed: newCompleted } : t))
     )
 
-    try {
-      const res = await fetch(`/api/tasks/${id}`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ completed: newCompleted }),
-      })
+    // 2. PATCH the DB
+    const res = await fetch(`/api/tasks/${id}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ completed: newCompleted }),
+    })
 
-      if (!res.ok) {
-        throw new Error("PATCH failed")
-      }
-      // ✅ DO NOT refetch after toggle — optimistic update is already correct
-      // Refetching would overwrite the optimistic state with a slight delay
-      // causing the flicker you were seeing
-
-    } catch (err) {
-      console.error("Toggle failed — reverting:", err)
-      // Only revert on actual failure
+    if (!res.ok) {
+      // 3. Rollback on failure
       setTasks((prev) =>
-        prev.map((t) => (t.id === id ? { ...t, completed: !newCompleted } : t))
+        prev.map((t) => (t.id === id ? { ...t, completed: task.completed } : t))
       )
+      console.error("PATCH failed — rolled back")
+      return
     }
-  }, []) // ✅ empty deps — uses ref so no stale closure
+
+    // 4. Update focus score if task qualifies
+    const qualifies = task.category !== "Personal" && task.priority !== "Daily"
+    if (qualifies) {
+      setFocusScore((prev) => {
+        const next = newCompleted ? prev + 10 : Math.max(0, prev - 10)
+        saveFocusScore(next)
+        return next
+      })
+    }
+
+    // 5. Background sync (non-blocking)
+    fetch("/api/tasks")
+      .then((r) => r.json())
+      .then((data) => setTasks(data.tasks || []))
+      .catch(() => {})
+  }, [tasks])
 
   const getTasksByCategory = useCallback(
     (category: Category) => tasks.filter((t) => t.category === category),
@@ -136,6 +162,7 @@ export function TaskProvider({ children }: { children: ReactNode }) {
       value={{
         tasks,
         isLoading,
+        focusScore,
         addTask,
         updateTask,
         deleteTask,
