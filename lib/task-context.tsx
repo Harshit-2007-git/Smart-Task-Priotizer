@@ -6,6 +6,7 @@ import {
   useState,
   useCallback,
   useEffect,
+  useRef,
   type ReactNode,
 } from "react"
 import type { Task, Category, Priority } from "./types"
@@ -26,6 +27,13 @@ const TaskContext = createContext<TaskContextType | undefined>(undefined)
 export function TaskProvider({ children }: { children: ReactNode }) {
   const [tasks, setTasks] = useState<Task[]>([])
   const [isLoading, setIsLoading] = useState(true)
+
+  // Keep a ref to tasks so toggleComplete can read current value
+  // without needing tasks in its dependency array
+  const tasksRef = useRef<Task[]>([])
+  useEffect(() => {
+    tasksRef.current = tasks
+  }, [tasks])
 
   const fetchTasks = useCallback(async () => {
     try {
@@ -79,32 +87,39 @@ export function TaskProvider({ children }: { children: ReactNode }) {
   }, [])
 
   const toggleComplete = useCallback(async (id: string) => {
-    const task = tasks.find((t) => t.id === id)
+    // ✅ Read current value from ref — no stale closure problem
+    const task = tasksRef.current.find((t) => t.id === id)
     if (!task) return
 
     const newCompleted = !task.completed
 
-    // ✅ OPTIMISTIC UPDATE — update UI instantly
-    // Task immediately moves to/from Completed tab without waiting for API
+    // ✅ Optimistic update — flip immediately in UI
     setTasks((prev) =>
       prev.map((t) => (t.id === id ? { ...t, completed: newCompleted } : t))
     )
 
-    // Sync with Supabase in background
-    const res = await fetch(`/api/tasks/${id}`, {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ completed: newCompleted }),
-    })
+    try {
+      const res = await fetch(`/api/tasks/${id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ completed: newCompleted }),
+      })
 
-    if (!res.ok) {
-      // Revert if API call failed
-      console.error("PATCH failed — reverting")
+      if (!res.ok) {
+        throw new Error("PATCH failed")
+      }
+      // ✅ DO NOT refetch after toggle — optimistic update is already correct
+      // Refetching would overwrite the optimistic state with a slight delay
+      // causing the flicker you were seeing
+
+    } catch (err) {
+      console.error("Toggle failed — reverting:", err)
+      // Only revert on actual failure
       setTasks((prev) =>
         prev.map((t) => (t.id === id ? { ...t, completed: !newCompleted } : t))
       )
     }
-  }, [tasks])
+  }, []) // ✅ empty deps — uses ref so no stale closure
 
   const getTasksByCategory = useCallback(
     (category: Category) => tasks.filter((t) => t.category === category),
