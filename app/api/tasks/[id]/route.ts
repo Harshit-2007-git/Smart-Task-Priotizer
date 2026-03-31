@@ -1,22 +1,33 @@
 import { NextResponse } from "next/server"
 import { createClient } from "@supabase/supabase-js"
 
+function getSupabase() {
+  return createClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.SUPABASE_SERVICE_ROLE_KEY!
+  )
+}
+
 export async function PATCH(
   request: Request,
   { params }: { params: { id: string } }
 ) {
-  const supabase = createClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.SUPABASE_SERVICE_ROLE_KEY!
-  )
-
+  const supabase = getSupabase()
   const body = await request.json()
 
-  // ✅ Accept any fields sent — not just completed
-  // This fixes updateTask (edit) AND toggleComplete both working correctly
+  const allowedFields = ["completed", "title", "description", "category", "priority", "deadline"]
+  const updates: Record<string, unknown> = {}
+  for (const key of allowedFields) {
+    if (key in body) updates[key] = body[key]
+  }
+
+  if (Object.keys(updates).length === 0) {
+    return NextResponse.json({ error: "No valid fields to update" }, { status: 400 })
+  }
+
   const { data, error } = await supabase
     .from("tasks")
-    .update(body)
+    .update(updates)
     .eq("id", params.id)
     .select()
 
@@ -32,10 +43,7 @@ export async function DELETE(
   _request: Request,
   { params }: { params: { id: string } }
 ) {
-  const supabase = createClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.SUPABASE_SERVICE_ROLE_KEY!
-  )
+  const supabase = getSupabase()
 
   const { error } = await supabase
     .from("tasks")
@@ -46,8 +54,5 @@ export async function DELETE(
     return NextResponse.json({ error }, { status: 400 })
   }
 
-  return NextResponse.json(
-    { message: "Task deleted successfully" },
-    { status: 200 }
-  )
+  return NextResponse.json({ message: "Task deleted successfully" }, { status: 200 })
 }
