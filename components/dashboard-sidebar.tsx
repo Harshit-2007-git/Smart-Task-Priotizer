@@ -5,32 +5,21 @@ import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import {
-  Zap,
-  LayoutDashboard,
-  BookOpen,
-  FileText,
-  Code2,
-  BookMarked,
-  Target,
-  CheckCircle2,
-  BarChart3,
-  ChevronLeft,
-  ChevronRight,
-  Timer,
-  Bot,
+  Zap, LayoutDashboard, BookOpen, FileText, Code2,
+  BookMarked, Target, CheckCircle2, BarChart3,
+  ChevronLeft, ChevronRight, Heart,
 } from "lucide-react"
 
 const sidebarLinks = [
-  { label: "Dashboard", href: "/dashboard", icon: LayoutDashboard },
-  { label: "Academic Tasks", href: "/dashboard?tab=Academic", icon: BookOpen, dot: "bg-red-500" },
-  { label: "Upcoming Exams", href: "/dashboard?tab=Exams", icon: FileText, dot: "bg-orange-500" },
-  { label: "Coding Practice", href: "/dashboard?tab=Coding", icon: Code2, dot: "bg-blue-500" },
-  { label: "Reading", href: "/dashboard?tab=Reading", icon: BookMarked, dot: "bg-emerald-500" },
-  { label: "Personal Goals", href: "/dashboard?tab=Personal", icon: Target, dot: "bg-purple-500" },
-  { label: "Completed", href: "/dashboard?tab=Completed", icon: CheckCircle2, dot: "bg-gray-500" },
-  { label: "Analytics", href: "/dashboard?tab=Analytics", icon: BarChart3 },
-  { label: "Focus Mode", href: "/dashboard?tab=FocusMode", icon: Timer, dot: "bg-cyan-500" },
-  { label: "AI Assistant", href: "/dashboard?tab=AIAssistant", icon: Bot, dot: "bg-pink-500" },
+  { label: "Dashboard", tab: "all", icon: LayoutDashboard },
+  { label: "Academic Tasks", tab: "Academic", icon: BookOpen, dot: "bg-red-500" },
+  { label: "Upcoming Exams", tab: "Exams", icon: FileText, dot: "bg-orange-500" },
+  { label: "Coding Practice", tab: "Coding", icon: Code2, dot: "bg-blue-500" },
+  { label: "Reading", tab: "Reading", icon: BookMarked, dot: "bg-emerald-500" },
+  { label: "Personal Tasks", tab: "Personal", icon: Target, dot: "bg-purple-500" },
+  { label: "Completed", tab: "Completed", icon: CheckCircle2, dot: "bg-gray-500" },
+  { label: "Analytics", tab: "Analytics", icon: BarChart3 },
+  { label: "Personal Workspace", tab: "PersonalWorkspace", icon: Heart, dot: "bg-pink-500" },
 ]
 
 interface DashboardSidebarProps {
@@ -42,46 +31,29 @@ export function DashboardSidebar({ activeTab, onTabChange }: DashboardSidebarPro
   const [collapsed, setCollapsed] = useState(false)
 
   return (
-    // ✅ FIX: sticky + h-screen so sidebar stays visible while page scrolls
-    <aside
-      className={cn(
-        "hidden md:flex flex-col border-r border-sidebar-border bg-sidebar sticky top-0 h-screen transition-all duration-300 shrink-0",
-        collapsed ? "w-16" : "w-64"
-      )}
-    >
-      {/* Logo */}
+    <aside className={cn(
+      "hidden md:flex flex-col border-r border-sidebar-border bg-sidebar transition-all duration-300",
+      collapsed ? "w-16" : "w-64"
+    )}>
       <div className="flex items-center gap-2 h-14 px-4 border-b border-sidebar-border shrink-0">
         <div className="size-8 rounded-lg bg-sidebar-primary flex items-center justify-center shrink-0">
           <Zap className="size-4 text-sidebar-primary-foreground" />
         </div>
         {!collapsed && (
-          <span className="font-semibold text-sm text-sidebar-foreground truncate">
-            Task Prioritizer
-          </span>
+          <span className="font-semibold text-sm text-sidebar-foreground truncate">Task Prioritizer</span>
         )}
       </div>
 
-      {/* Nav Links */}
       <ScrollArea className="flex-1 py-3">
         <nav className="flex flex-col gap-1 px-2">
           {sidebarLinks.map((link) => {
-            const isActive =
-              (link.label === "Dashboard" && activeTab === "all") ||
-              (link.href.includes("tab=") &&
-                link.href.split("tab=")[1] === activeTab)
-
+            const isActive = link.tab === activeTab
             return (
               <button
                 key={link.label}
-                onClick={() => {
-                  if (link.label === "Dashboard") {
-                    onTabChange("all")
-                  } else if (link.href.includes("tab=")) {
-                    onTabChange(link.href.split("tab=")[1])
-                  }
-                }}
+                onClick={() => onTabChange(link.tab)}
                 className={cn(
-                  "flex items-center gap-3 rounded-lg px-3 py-2 text-sm transition-colors",
+                  "flex items-center gap-3 rounded-lg px-3 py-2 text-sm transition-colors w-full text-left",
                   collapsed && "justify-center px-0",
                   isActive
                     ? "bg-sidebar-accent text-sidebar-accent-foreground font-medium"
@@ -101,14 +73,8 @@ export function DashboardSidebar({ activeTab, onTabChange }: DashboardSidebarPro
         </nav>
       </ScrollArea>
 
-      {/* Collapse Toggle */}
-      <div className="border-t border-sidebar-border p-2 shrink-0">
-        <Button
-          variant="ghost"
-          size="sm"
-          className="w-full justify-center"
-          onClick={() => setCollapsed(!collapsed)}
-        >
+      <div className="border-t border-sidebar-border p-2">
+        <Button variant="ghost" size="sm" className="w-full justify-center" onClick={() => setCollapsed(!collapsed)}>
           {collapsed ? <ChevronRight className="size-4" /> : <ChevronLeft className="size-4" />}
           {!collapsed && <span className="ml-2 text-xs">Collapse</span>}
         </Button>
