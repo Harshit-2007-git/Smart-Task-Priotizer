@@ -54,10 +54,10 @@ export function TaskCard({
     }
   }
 
-  const deadlineDate = new Date(task.deadline)
+  const deadlineDate = task.deadline ? new Date(task.deadline) : null
   const isOverdue =
-    isPast(deadlineDate) && !isToday(deadlineDate) && !task.completed
-  const isDueToday = isToday(deadlineDate)
+    deadlineDate ? isPast(deadlineDate) && !isToday(deadlineDate) && !task.completed : false
+  const isDueToday = deadlineDate ? isToday(deadlineDate) : false
 
   return (
     <div
@@ -188,6 +188,7 @@ export function TaskCard({
                   {task.category}
                 </Badge>
 
+                {deadlineDate && (
                 <span
                   className={cn(
                     "flex items-center gap-1 text-[11px]",
@@ -205,6 +206,7 @@ export function TaskCard({
                     ? "Due today"
                     : format(deadlineDate, "MMM d")}
                 </span>
+                )}
 
                 {task.completed && (
                   <Badge
