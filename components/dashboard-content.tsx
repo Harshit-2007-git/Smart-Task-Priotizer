@@ -8,43 +8,86 @@ import { TaskCard } from "@/components/task-card"
 import { AddTaskModal } from "@/components/add-task-modal"
 import { CategorySummary } from "@/components/category-summary"
 import { AnalyticsSection } from "@/components/analytics-section"
-import { FocusModeSection } from "@/components/focus-mode-section"
-import { AIAssistantSection } from "@/components/ai-assistant-section"
+import { PersonalWorkspace } from "@/components/personal-workspace"
 import { Button } from "@/components/ui/button"
+import { ScrollArea } from "@/components/ui/scroll-area"
 import { Skeleton } from "@/components/ui/skeleton"
-import { Plus, Search, CheckCircle2 } from "lucide-react"
+import { Plus, Search, Timer, Pause } from "lucide-react"
 import { Input } from "@/components/ui/input"
 import { toast } from "sonner"
 import type { Task } from "@/lib/types"
+import { cn } from "@/lib/utils"
+
+function useFocusTimer() {
+  const [active, setActive] = useState(false)
+  const [seconds, setSeconds] = useState(25 * 60)
+  const [intervalId, setIntervalId] = useState<NodeJS.Timeout | null>(null)
+
+  const start = () => {
+    if (active) return
+    setActive(true)
+    const id = setInterval(() => {
+      setSeconds((s) => {
+        if (s <= 1) {
+          clearInterval(id)
+          setActive(false)
+          toast.success("Focus session complete! 🎉 Take a break.")
+          return 25 * 60
+        }
+        return s - 1
+      })
+    }, 1000)
+    setIntervalId(id)
+  }
+
+  const pause = () => {
+    if (intervalId) clearInterval(intervalId)
+    setActive(false)
+  }
+
+  const reset = () => {
+    if (intervalId) clearInterval(intervalId)
+    setActive(false)
+    setSeconds(25 * 60)
+  }
+
+  const fmt = `${String(Math.floor(seconds / 60)).padStart(2, "0")}:${String(seconds % 60).padStart(2, "0")}`
+  return { active, fmt, start, pause, reset }
+}
 
 export function DashboardContent() {
-  const { tasks, isLoading, addTask, updateTask, deleteTask, toggleComplete } =
-    useTasks()
+  const { tasks, isLoading, focusScore, addTask, updateTask, deleteTask, toggleComplete } = useTasks()
 
   const [activeTab, setActiveTab] = useState("all")
   const [addModalOpen, setAddModalOpen] = useState(false)
   const [editTask, setEditTask] = useState<Task | null>(null)
   const [searchQuery, setSearchQuery] = useState("")
+  const [focusModeOn, setFocusModeOn] = useState(false)
+  const focus = useFocusTimer()
+
+  const toggleFocusMode = () => {
+    if (focusModeOn) {
+      focus.pause()
+      setFocusModeOn(false)
+      toast.success("Focus mode off")
+    } else {
+      focus.start()
+      setFocusModeOn(true)
+      toast.success("Focus mode on — stay locked in! 🔒")
+    }
+  }
 
   const filteredTasks = tasks.filter((task) => {
     const matchesSearch =
       task.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      task.description.toLowerCase().includes(searchQuery.toLowerCase())
+      (task.description || "").toLowerCase().includes(searchQuery.toLowerCase())
 
-    if (activeTab === "Completed") {
-      return task.completed && matchesSearch
-    }
-
-    if (activeTab !== "all") {
-      return !task.completed && task.category === activeTab && matchesSearch
-    }
-
-    return !task.completed && matchesSearch
+    if (activeTab === "Completed") return task.completed && matchesSearch
+    if (activeTab === "all") return !task.completed && matchesSearch
+    return task.category === activeTab && !task.completed && matchesSearch
   })
 
-  const handleAddOrUpdate = async (
-    taskData: Omit<Task, "id" | "completed" | "createdAt">
-  ) => {
+  const handleAddOrUpdate = async (taskData: Omit<Task, "id" | "completed" | "createdAt">) => {
     if (editTask) {
       await updateTask(editTask.id, taskData)
       toast.success("Task updated successfully")
@@ -65,50 +108,50 @@ export function DashboardContent() {
     setAddModalOpen(true)
   }
 
-  const completedCount = tasks.filter((t) => t.completed).length
-
   return (
-    // ✅ FIX: removed overflow-hidden so the page can scroll naturally
-    <div className="flex min-h-screen bg-background">
+    <div className="flex h-screen overflow-hidden bg-background">
       <DashboardSidebar activeTab={activeTab} onTabChange={setActiveTab} />
 
-      <div className="flex-1 flex flex-col">
-        {/* Sticky navbar */}
-        <div className="sticky top-0 z-10">
-          <DashboardNavbar activeTab={activeTab} onTabChange={setActiveTab} />
-        </div>
+      <div className="flex-1 flex flex-col overflow-hidden">
+        <DashboardNavbar
+          activeTab={activeTab}
+          onTabChange={setActiveTab}
+          focusScore={focusScore}
+          focusModeOn={focusModeOn}
+          focusTimerFmt={focus.fmt}
+          onToggleFocus={toggleFocusMode}
+        />
 
-        {/* Scrollable main content */}
-        <main className="flex-1 overflow-y-auto p-4 lg:p-6">
-          <div className="max-w-6xl mx-auto w-full">
+        {/* Focus mode banner — all interactions still work underneath */}
+        {focusModeOn && (
+          <div className="flex items-center justify-between gap-3 px-4 lg:px-6 py-2 bg-amber-500/10 border-b border-amber-500/20">
+            <div className="flex items-center gap-2">
+              <Timer className="size-4 text-amber-600 dark:text-amber-400" />
+              <span className="text-sm font-medium text-amber-700 dark:text-amber-300">
+                Focus mode active — {focus.fmt} remaining
+              </span>
+            </div>
+            <div className="flex gap-2">
+              <Button size="sm" variant="outline" className="h-7 text-xs" onClick={focus.reset}>
+                Reset
+              </Button>
+              <Button size="sm" variant="outline" className="h-7 text-xs" onClick={toggleFocusMode}>
+                <Pause className="size-3 mr-1" />
+                Pause
+              </Button>
+            </div>
+          </div>
+        )}
 
+        <ScrollArea className="flex-1">
+          <main className="p-4 lg:p-6 max-w-6xl mx-auto w-full">
             {activeTab === "Analytics" ? (
-              <AnalyticsSection tasks={tasks} />
-
-            ) : activeTab === "FocusMode" ? (
-              <FocusModeSection />
-
-            ) : activeTab === "AIAssistant" ? (
-              <AIAssistantSection />
-
+              <AnalyticsSection tasks={tasks} focusScore={focusScore} />
+            ) : activeTab === "PersonalWorkspace" ? (
+              <PersonalWorkspace />
             ) : (
               <div className="flex flex-col gap-6">
-
                 {activeTab === "all" && <CategorySummary tasks={tasks} />}
-
-                {activeTab === "Completed" && (
-                  <div className="flex items-center gap-3">
-                    <div className="flex items-center gap-2">
-                      <CheckCircle2 className="size-5 text-emerald-500" />
-                      <h2 className="text-lg font-semibold text-foreground">
-                        Completed Tasks
-                      </h2>
-                    </div>
-                    <span className="text-sm text-muted-foreground bg-muted px-2 py-0.5 rounded-full">
-                      {completedCount} task{completedCount !== 1 ? "s" : ""}
-                    </span>
-                  </div>
-                )}
 
                 <div className="flex items-center gap-3">
                   <div className="relative flex-1">
@@ -120,17 +163,10 @@ export function DashboardContent() {
                       className="pl-9"
                     />
                   </div>
-                  {activeTab !== "Completed" && (
-                    <Button
-                      onClick={() => {
-                        setEditTask(null)
-                        setAddModalOpen(true)
-                      }}
-                    >
-                      <Plus className="mr-2 size-4" />
-                      Add Task
-                    </Button>
-                  )}
+                  <Button onClick={() => { setEditTask(null); setAddModalOpen(true) }}>
+                    <Plus className="mr-2 size-4" />
+                    Add Task
+                  </Button>
                 </div>
 
                 {isLoading ? (
@@ -142,22 +178,14 @@ export function DashboardContent() {
                 ) : filteredTasks.length === 0 ? (
                   <div className="flex flex-col items-center justify-center py-16 text-center">
                     <div className="size-16 rounded-full bg-muted flex items-center justify-center mb-4">
-                      {activeTab === "Completed" ? (
-                        <CheckCircle2 className="size-6 text-muted-foreground" />
-                      ) : (
-                        <Search className="size-6 text-muted-foreground" />
-                      )}
+                      <Search className="size-6 text-muted-foreground" />
                     </div>
-                    <h3 className="text-lg font-medium text-foreground">
-                      {activeTab === "Completed"
-                        ? "No completed tasks yet"
-                        : "No tasks found"}
-                    </h3>
+                    <h3 className="text-lg font-medium text-foreground">No tasks found</h3>
                     <p className="text-sm text-muted-foreground mt-1">
-                      {activeTab === "Completed"
-                        ? "Complete a task by checking the checkbox on any task card"
-                        : searchQuery
+                      {searchQuery
                         ? "Try a different search term"
+                        : activeTab === "Completed"
+                        ? "Complete a task to see it here"
                         : "Click \"Add Task\" to get started"}
                     </p>
                   </div>
@@ -174,19 +202,15 @@ export function DashboardContent() {
                     ))}
                   </div>
                 )}
-
               </div>
             )}
-          </div>
-        </main>
+          </main>
+        </ScrollArea>
       </div>
 
       <AddTaskModal
         open={addModalOpen}
-        onOpenChange={(open) => {
-          setAddModalOpen(open)
-          if (!open) setEditTask(null)
-        }}
+        onOpenChange={(open) => { setAddModalOpen(open); if (!open) setEditTask(null) }}
         onSubmit={handleAddOrUpdate}
         editTask={editTask}
       />
